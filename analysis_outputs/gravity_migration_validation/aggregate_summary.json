@@ -1,0 +1,9 @@
+{
+  "sample_count": 1,
+  "passed_count": 1,
+  "all_passed": true,
+  "atol": 1e-09,
+  "rtol": 1e-09,
+  "mean_rmse": 7.228734100754577e-15,
+  "maximum_absolute_error": 6.039613253960852e-14
+}
