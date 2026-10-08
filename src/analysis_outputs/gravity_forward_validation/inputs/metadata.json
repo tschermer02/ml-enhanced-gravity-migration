@@ -1,0 +1,19 @@
+{
+  "sample_count": 2,
+  "density_shape_zyx": [
+    24,
+    64,
+    64
+  ],
+  "gravity_shape_yx": [
+    81,
+    81
+  ],
+  "cell_m": 10,
+  "receivers_x_y_m": "-85:10:715",
+  "receivers_z_m": 0,
+  "density_gcm3": true,
+  "gravity_mgal": true,
+  "flattening": "x fastest, then y, then z",
+  "method": "cell-centered point mass; G=6.67e-11"
+}

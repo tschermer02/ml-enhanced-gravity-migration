@@ -1,0 +1,3 @@
+sample_id,source,h5_name
+sample_000000,..\..\data\synthetic\single_prism\test\sample_000000.npz,sample_000000.h5
+sample_000001,..\..\data\synthetic\single_prism\test\sample_000001.npz,sample_000001.h5
