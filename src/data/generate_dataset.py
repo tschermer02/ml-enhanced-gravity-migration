@@ -29,7 +29,7 @@ for candidate in (str(ROOT), str(SRC)):
     if candidate not in sys.path:
         sys.path.insert(0, candidate)
 
-from gravity_migration_ml.physics.gravity_forward import calculate_gravity
+from physics.gravity_forward import calculate_gravity
 
 
 # ============================================================

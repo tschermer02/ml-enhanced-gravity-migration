@@ -18,9 +18,9 @@ for p in (str(ROOT), str(ROOT / 'src'), str(ROOT / 'src' / 'gravity_migration_ml
         sys.path.insert(0, p)
 
 try:
-    from gravity_migration_ml.physics.gravity_forward import GravityForwardModel
+    from physics.gravity_forward import GravityForwardModel
 except ImportError:
-    import gravity_migration_ml.physics.gravity_forward as gravity_module
+    import physics.gravity_forward as gravity_module
     if hasattr(gravity_module, 'GravityForwardModel'):
         GravityForwardModel = gravity_module.GravityForwardModel
     elif hasattr(gravity_module, 'calculate_gravity'):
