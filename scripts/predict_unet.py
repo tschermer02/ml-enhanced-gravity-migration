@@ -133,9 +133,12 @@ def main() -> None:
     parser.add_argument("--model", type=Path,
                         default=TRAINING_ROOT / "checkpoints" / "best_unet3d.keras")
     parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--visualize-count", type=int, default=3)
+    parser.add_argument(
+        "--visualize-count", type=int, default=None,
+        help="Limit comparison figures to the first N samples; default creates one for every sample.",
+    )
     args = parser.parse_args()
-    if args.visualize_count < 0:
+    if args.visualize_count is not None and args.visualize_count < 0:
         parser.error("--visualize-count must be >= 0")
 
     data_root = args.data_root if args.data_root.is_absolute() else ROOT / args.data_root
@@ -175,7 +178,7 @@ def main() -> None:
             migration_scale=np.float64(migration_scale),
         )
 
-        if index <= args.visualize_count:
+        if args.visualize_count is None or index <= args.visualize_count:
             save_comparison_figure(
                 true_density, predicted_density,
                 figures_dir / f"{path.stem}_comparison.png", path.stem,
