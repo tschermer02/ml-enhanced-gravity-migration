@@ -182,14 +182,21 @@ def main() -> None:
                 gravity_observed, gravity_predicted,
                 figures_dir / f"{path.stem}_gravity_comparison.png", path.stem,
             )
-            plot_sample_3d(
-                density_true, gravity_observed,
-                figures_dir / f"{path.stem}_density_3d.html",
-                reconstruction=density_predicted,
-                make_gif=not args.no_gifs,
-                gif_frames=args.gif_frames,
-                gif_duration_seconds=8.0,
-            )
+            try:
+                plot_sample_3d(
+                    density_true, gravity_observed,
+                    figures_dir / f"{path.stem}_density_3d.html",
+                    reconstruction=density_predicted,
+                    make_gif=not args.no_gifs,
+                    gif_frames=args.gif_frames,
+                    gif_duration_seconds=8.0,
+                )
+            except (RuntimeError, ValueError) as error:
+                print(
+                    f"Optional 3D/GIF export skipped for {path.stem}; "
+                    f"prediction and 2D outputs will continue: {error}",
+                    flush=True,
+                )
         print(
             f"E02 {index}/{len(files)} {path.stem}: density MAE="
             f"{metrics['density_mae']:.5g}, gravity RMSE="
