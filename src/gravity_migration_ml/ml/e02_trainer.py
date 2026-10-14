@@ -11,7 +11,7 @@ class E02Trainer(tf.keras.Model):
 
     def __init__(self, network: tf.keras.Model, loss_weights: dict[str, float],
                  huber_delta: float = 0.1,
-                 gravity_normalization_mgal: float = 0.02,
+                 gravity_normalization_mgal: float = 3.5,
                  cell_spacing_m: float = 10.0):
         super().__init__(name="e02_physics_constrained_trainer")
         self.network = network

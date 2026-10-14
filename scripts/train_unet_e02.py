@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import sys
+import time
 from pathlib import Path
 
 import matplotlib
@@ -21,6 +22,7 @@ if str(SRC) not in sys.path:
 from gravity_migration_ml.ml.e02_dataset import make_e02_dataset  # noqa: E402
 from gravity_migration_ml.ml.e02_trainer import E02Trainer  # noqa: E402
 from gravity_migration_ml.ml.unet3d import build_unet3d  # noqa: E402
+from gravity_migration_ml.ml.dataset import sample_paths  # noqa: E402
 
 # Controlled-comparison settings copied from E01.
 LEARNING_RATE = 1e-3
@@ -63,6 +65,53 @@ class E02EpochPrinter(tf.keras.callbacks.Callback):
             f"val_struct={logs.get('val_struct_loss', float('nan')):.6g}",
             flush=True,
         )
+
+
+class E02BatchProgress(tf.keras.callbacks.Callback):
+    """Print sparse batch progress and compare first batch with later batches."""
+
+    def __init__(self, total_batches: int, total_epochs: int, interval: int = 10):
+        super().__init__()
+        self.total_batches = total_batches
+        self.total_epochs = total_epochs
+        self.interval = interval
+
+    def on_epoch_begin(self, epoch: int, logs: dict[str, float] | None = None) -> None:
+        self.current_epoch = epoch + 1
+        self.epoch_started = time.perf_counter()
+        self.batch_started = self.epoch_started
+        self.first_batch_seconds: float | None = None
+        self.later_batch_seconds: list[float] = []
+        print(f"Starting epoch {epoch + 1}/{self.total_epochs}", flush=True)
+
+    def on_train_batch_end(self, batch: int, logs: dict[str, float] | None = None) -> None:
+        now = time.perf_counter()
+        batch_seconds = now - self.batch_started
+        if batch == 0:
+            self.first_batch_seconds = batch_seconds
+        else:
+            self.later_batch_seconds.append(batch_seconds)
+        completed = batch + 1
+        if completed == 1 or completed % self.interval == 0 or completed == self.total_batches:
+            logs = logs or {}
+            later_average = (
+                float(np.mean(self.later_batch_seconds))
+                if self.later_batch_seconds else float("nan")
+            )
+            first_text = (
+                f"{self.first_batch_seconds:.2f}s"
+                if self.first_batch_seconds is not None else "n/a"
+            )
+            later_text = f"{later_average:.2f}s" if np.isfinite(later_average) else "n/a"
+            print(
+                f"Epoch {self.current_epoch}/{self.total_epochs} "
+                f"batch {completed}/{self.total_batches}: "
+                f"total_loss={logs.get('total_loss', float('nan')):.5g}; "
+                f"batch={batch_seconds:.2f}s; first={first_text}; "
+                f"later_avg={later_text}; elapsed={now - self.epoch_started:.1f}s",
+                flush=True,
+            )
+        self.batch_started = now
 
 
 class SaveBestNetwork(tf.keras.callbacks.Callback):
@@ -127,6 +176,8 @@ def main() -> None:
         data_root, gravity_root, "validation", args.batch_size,
         limit=args.limit, seed=RANDOM_SEED,
     )
+    train_sample_count = len(sample_paths(data_root, "train", args.limit))
+    total_batches = (train_sample_count + args.batch_size - 1) // args.batch_size
 
     weights = {
         "lambda_model": args.lambda_model,
@@ -140,11 +191,15 @@ def main() -> None:
         gravity_normalization_mgal=args.gravity_normalization_mgal,
         cell_spacing_m=CELL_SPACING_M,
     )
-    trainer.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE))
+    trainer.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
+        jit_compile=False,
+    )
 
     checkpoint_path = checkpoints / "best_unet3d.keras"
     callbacks = [
         SaveBestNetwork(checkpoint_path),
+        E02BatchProgress(total_batches, args.epochs),
         tf.keras.callbacks.EarlyStopping(
             monitor="val_total_loss", patience=EARLY_STOPPING_PATIENCE,
             restore_best_weights=True, mode="min",

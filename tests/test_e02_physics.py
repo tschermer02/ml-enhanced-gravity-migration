@@ -52,6 +52,7 @@ def test_gradient_is_finite_with_respect_to_density() -> None:
     assert gradient is not None
     assert gradient.shape == density.shape
     assert bool(tf.reduce_all(tf.math.is_finite(gradient)).numpy())
+    assert float(tf.reduce_max(tf.abs(gradient)).numpy()) > 0.0
 
 
 def test_gradient_descent_reduces_gravity_misfit() -> None:

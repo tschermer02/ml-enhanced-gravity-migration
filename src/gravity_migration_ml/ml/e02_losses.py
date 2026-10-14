@@ -40,7 +40,7 @@ def e02_loss_components(
     lambda_struct: float = 0.1,
     lambda_reg: float = 0.0,
     huber_delta: float = 0.1,
-    gravity_normalization_mgal: float = 0.02,
+    gravity_normalization_mgal: float = 3.5,
     cell_spacing_m: float = 10.0,
 ) -> dict[str, tf.Tensor]:
     """Compute E02's weighted Huber, gravity, structural, and zero reg terms.

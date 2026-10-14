@@ -34,7 +34,7 @@ def _make_kernel_spectra() -> tf.Tensor:
 _KERNEL_SPECTRA = _make_kernel_spectra()
 
 
-@tf.function(reduce_retracing=True)
+@tf.function(reduce_retracing=True, jit_compile=False)
 def gravity_forward_tf(density: tf.Tensor) -> tf.Tensor:
     """Map density `[B,24,64,64,1]` to gravity `[B,81,81,1]` in mGal.
 

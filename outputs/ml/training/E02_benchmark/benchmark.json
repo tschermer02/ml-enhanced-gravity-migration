@@ -1,0 +1,62 @@
+{
+  "unet_forward": {
+    "trace_seconds": 0.09000730002298951,
+    "first_execution_seconds": 0.06472310004755855,
+    "steady_seconds_per_step": 0.023177799943368882,
+    "steady_samples_per_second": 43.14473342782035,
+    "gpu_memory_before_mib": null,
+    "gpu_memory_peak_before_mib": null,
+    "gpu_memory_after_mib": null,
+    "gpu_memory_peak_after_mib": null
+  },
+  "unet_forward_backward": {
+    "trace_seconds": 0.17040239996276796,
+    "first_execution_seconds": 0.17562780005391687,
+    "steady_seconds_per_step": 0.09653934999369085,
+    "steady_samples_per_second": 10.35847040678597,
+    "gpu_memory_before_mib": null,
+    "gpu_memory_peak_before_mib": null,
+    "gpu_memory_after_mib": null,
+    "gpu_memory_peak_after_mib": null
+  },
+  "gravity_forward": {
+    "trace_seconds": 0.06379239994566888,
+    "first_execution_seconds": 0.03253289998974651,
+    "steady_seconds_per_step": 0.004812149971257895,
+    "steady_samples_per_second": 207.80732229311636,
+    "gpu_memory_before_mib": null,
+    "gpu_memory_peak_before_mib": null,
+    "gpu_memory_after_mib": null,
+    "gpu_memory_peak_after_mib": null
+  },
+  "gravity_forward_gradient": {
+    "trace_seconds": 0.05251379997935146,
+    "first_execution_seconds": 0.03302660002373159,
+    "steady_seconds_per_step": 0.009600749996025115,
+    "steady_samples_per_second": 104.15852932469006,
+    "gpu_memory_before_mib": null,
+    "gpu_memory_peak_before_mib": null,
+    "gpu_memory_after_mib": null,
+    "gpu_memory_peak_after_mib": null
+  },
+  "structural_loss": {
+    "trace_seconds": 0.1416670000180602,
+    "first_execution_seconds": 0.06566919991746545,
+    "steady_seconds_per_step": 0.02329829998780042,
+    "steady_samples_per_second": 42.921586576000195,
+    "gpu_memory_before_mib": null,
+    "gpu_memory_peak_before_mib": null,
+    "gpu_memory_after_mib": null,
+    "gpu_memory_peak_after_mib": null
+  },
+  "complete_e02_train_step": {
+    "trace_seconds": 0.5620842999778688,
+    "first_execution_seconds": 0.3426278999540955,
+    "steady_seconds_per_step": 0.10750854999059811,
+    "steady_samples_per_second": 9.301585781665295,
+    "gpu_memory_before_mib": null,
+    "gpu_memory_peak_before_mib": null,
+    "gpu_memory_after_mib": null,
+    "gpu_memory_peak_after_mib": null
+  }
+}
