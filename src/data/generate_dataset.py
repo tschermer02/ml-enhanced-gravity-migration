@@ -1,18 +1,17 @@
 
 """
-Generate synthetic 3D density models and surface gravity data.
+Generate synthetic 3D density models.
 
 Each model contains one rectangular prism with a uniform
 positive density contrast.
 
 Density model: (24, 64, 64) [z, y, x]
-Gravity data:  (81, 81)     [y, x]
 
 Density units: g/cm^3
 Gravity units: mGal
 Distance units: meters
 
-Gravity is calculated using gravity_forward.py.
+Forward gravity and migration outputs are generated as separate pipeline stages.
 """
 
 import sys
@@ -21,16 +20,13 @@ from pathlib import Path
 import numpy as np
 
 # Project directories
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 
 # Allow imports from the project source folder
 for candidate in (str(ROOT), str(SRC)):
     if candidate not in sys.path:
         sys.path.insert(0, candidate)
-
-from physics.gravity_forward import calculate_gravity
-
 
 # ============================================================
 # 1. PARAMETERS
@@ -65,7 +61,7 @@ N_TEST = 100
 rng = np.random.default_rng(42)
 
 # Output directory
-OUTPUT_DIR = ROOT / "data" / "synthetic" / "single_prism"
+OUTPUT_DIR = SRC / "data" / "dataset" / "synthetic_models"
 
 
 # ============================================================
@@ -118,7 +114,7 @@ def generate_density():
 # ============================================================
 
 def generate_dataset(split, n_samples):
-    """Generate and save density/gravity training pairs."""
+    """Generate density models and prism parameters for one split."""
 
     # Create dataset folder
     folder = OUTPUT_DIR / split
@@ -129,14 +125,10 @@ def generate_dataset(split, n_samples):
         # Generate random density model
         density, prism = generate_density()
 
-        # Calculate surface gravity using gravity_forward.py
-        gravity = calculate_gravity(density).astype(np.float32)
-
-        # Save density, gravity, and prism parameters
+        # Save only the synthetic model and its generating parameters.
         np.savez_compressed(
             folder / f"sample_{i:06d}.npz",
             density=density,
-            gravity=gravity,
             **prism
         )
 

@@ -61,23 +61,52 @@ def plot_density_slices(density: np.ndarray, output: str | Path, *, cell_m: floa
 
 
 def plot_volume_comparison(truth: np.ndarray, estimate: np.ndarray,
-                           output: str | Path, *, cell_m: float = CELL_M) -> None:
-    """Compare central x-depth sections of true and estimated 3D volumes.
-
-    Note: if estimate is an adjoint image, its values are NOT density units.
-    Each panel therefore has a separate scale.
-    """
+                           output: str | Path, *, cell_m: float = CELL_M,
+                           estimate_label: str = "Estimated / adjoint image",
+                           estimate_units: str = "Adjoint / estimate value",
+                           title: str | None = None) -> None:
+    """Plot matching orthogonal slices of the true and estimated 3D volumes."""
     truth, estimate = np.asarray(truth), np.asarray(estimate)
     if truth.shape != estimate.shape or truth.ndim != 3:
         raise ValueError("Truth and estimate must be same-shaped 3D volumes")
     nz, ny, nx = truth.shape
     occupied = np.argwhere(truth != 0)
-    iy = int(np.rint(occupied[:, 1].mean())) if occupied.size else ny // 2
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
-    for ax, vol, label in zip(axes, [truth, estimate], ["True density", "Estimated / adjoint image"]):
-        im = ax.imshow(vol[:, iy, :], origin="upper", extent=[0, nx*cell_m, nz*cell_m, 0], aspect="auto")
-        ax.set(title=label, xlabel="Easting (m)", ylabel="Depth (m)")
-        fig.colorbar(im, ax=ax, shrink=0.85, label="g/cm³" if label == "True density" else "Adjoint / estimate value")
+    iz, iy, ix = (
+        np.rint(occupied.mean(axis=0)).astype(int)
+        if occupied.size else (nz // 2, ny // 2, nx // 2)
+    )
+    slices = [
+        (truth[iz], estimate[iz], [0, nx*cell_m, 0, ny*cell_m], "lower",
+         f"Horizontal slice, z = {(iz + 0.5)*cell_m:g} m", "Easting (m)", "Northing (m)"),
+        (truth[:, iy, :], estimate[:, iy, :], [0, nx*cell_m, nz*cell_m, 0], "upper",
+         f"X-depth slice, y = {(iy + 0.5)*cell_m:g} m", "Easting (m)", "Depth (m)"),
+        (truth[:, :, ix], estimate[:, :, ix], [0, ny*cell_m, nz*cell_m, 0], "upper",
+         f"Y-depth slice, x = {(ix + 0.5)*cell_m:g} m", "Northing (m)", "Depth (m)"),
+    ]
+    fig, axes = plt.subplots(2, 3, figsize=(17, 9), constrained_layout=True)
+    row_data = ((truth, "Synthetic density", "Density contrast (g/cm³)"),
+                (estimate, estimate_label, estimate_units))
+    for row, (volume, row_label, units) in enumerate(row_data):
+        scale_min = min(float(volume.min()), 0.0)
+        scale_max = max(float(volume.max()), 1e-12)
+        last_image = None
+        for column, (true_slice, estimate_slice, extent, origin, slice_title,
+                     xlabel, ylabel) in enumerate(slices):
+            values = true_slice if row == 0 else estimate_slice
+            last_image = axes[row, column].imshow(
+                values, origin=origin, extent=extent, cmap="viridis",
+                vmin=scale_min, vmax=scale_max, aspect="auto",
+            )
+            axes[row, column].set(
+                title=slice_title, xlabel=xlabel, ylabel=ylabel,
+            )
+        fig.colorbar(last_image, ax=axes[row, :], shrink=0.85, label=units)
+        axes[row, 0].annotate(
+            row_label, xy=(-0.2, 0.5), xycoords="axes fraction",
+            rotation=90, ha="center", va="center", fontsize=12,
+        )
+    if title:
+        fig.suptitle(title)
     _save(fig, output)
 
 

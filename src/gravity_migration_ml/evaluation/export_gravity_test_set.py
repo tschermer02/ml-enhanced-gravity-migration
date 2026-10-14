@@ -33,11 +33,14 @@ def test_samples(dataset: Path):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--dataset', type=Path, default=Path('data/synthetic/single_prism'))
+    p.add_argument('--dataset', type=Path, default=Path('src/data/dataset/synthetic_models'))
+    p.add_argument('--forward-models', type=Path, default=Path('src/data/dataset/forward_models'))
     p.add_argument('--output', type=Path, default=Path('analysis_outputs/gravity_forward_validation/inputs'))
     p.add_argument('--limit', type=int, default=None)
     args = p.parse_args()
     samples = list(test_samples(args.dataset))
+    split = args.dataset.name if any(args.dataset.glob('*.npz')) else 'validation'
+    forward_root = args.forward_models / split
     if args.limit is not None:
         if args.limit < 1: p.error('--limit must be >= 1')
         samples = samples[:args.limit]
@@ -47,6 +50,7 @@ def main():
     for i, (sid, source) in enumerate(samples, 1):
         with np.load(source) as arrays:
             density = np.asarray(arrays['density'], dtype=np.float64)
+        with np.load(forward_root / source.name) as arrays:
             saved_gravity = np.asarray(arrays['gravity'], dtype=np.float64)
         if density.shape != (24, 64, 64) or saved_gravity.shape != (81, 81):
             raise ValueError(f'{sid}: wrong shape {density.shape}, {saved_gravity.shape}')

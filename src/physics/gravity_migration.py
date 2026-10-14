@@ -20,6 +20,7 @@ Assumes flat topography and zero receiver clearance.
 """
 
 import numpy as np
+from scipy.signal import fftconvolve
 
 
 # ============================================================
@@ -91,105 +92,27 @@ def calculate_migration(gravity, restrict=False,
     if ro_min > ro_max:
         raise ValueError("ro_min must not exceed ro_max")
 
-    # --------------------------------------------------------
-    # 2.2 Create observation coordinates
-    # --------------------------------------------------------
+    offsets = np.arange(-72, 72, dtype=np.float64) * CELL_SIZE
+    dy, dx = np.meshgrid(offsets, offsets, indexing="ij")
+    migration = np.empty((NZ, NY, NX), dtype=np.float64)
+    normalization = GAMMA * np.sqrt(np.pi)
 
-    xr, yr = np.meshgrid(OBS_X, OBS_Y)
-
-    xr = xr.ravel()
-    yr = yr.ravel()
-    zr = np.full(xr.size, OBS_Z)
-
-    # Flatten gravity measurements in matching order
-    gz = gravity.ravel()
-
-    # --------------------------------------------------------
-    # 2.3 Create subsurface model coordinates
-    # --------------------------------------------------------
-
-    # Use the centers of model cells
-    x = (np.arange(NX) + 0.5) * CELL_SIZE
-    y = (np.arange(NY) + 0.5) * CELL_SIZE
-    z = (np.arange(NZ) + 0.5) * CELL_SIZE
-
-    # 3D coordinate grids in [z, y, x] order
-    zz, yy, xx = np.meshgrid(
-        z, y, x,
-        indexing="ij"
-    )
-
-    # Flatten model coordinates for calculation
-    xm = xx.ravel()
-    ym = yy.ravel()
-    zm = zz.ravel()
-
-    # --------------------------------------------------------
-    # 2.4 Calculate MATLAB migration summation
-    # --------------------------------------------------------
-
-    dm = np.zeros(xm.size, dtype=np.float64)
-
-    # Process model cells in batches to reduce memory usage
-    for start in range(0, xm.size, CHUNK_SIZE):
-
-        end = min(start + CHUNK_SIZE, xm.size)
-
-        # Coordinate differences between receivers and cells
-        dx = xr[None, :] - xm[start:end, None]
-        dy = yr[None, :] - ym[start:end, None]
-        dz = zm[start:end, None] - zr[None, :]
-
-        # Squared distance
-        r2 = dx**2 + dy**2 + dz**2
-
-        # Distance cubed
-        r3 = r2 * np.sqrt(r2)
-
-        # MATLAB Gz migration kernel:
-        #
-        # gzm = vr(ir) .* zzd ./ r3
-        # dm = dm + gzm
-        dm[start:end] = np.sum(
-            gz[None, :] * dz / r3,
-            axis=1
+    for iz in range(NZ):
+        depth = (iz + 0.5) * CELL_SIZE
+        radius_squared = dx**2 + dy**2 + depth**2
+        kernel = depth / (radius_squared * np.sqrt(radius_squared))
+        convolution = fftconvolve(gravity, kernel[::-1, ::-1], mode="full")
+        migration[iz] = (
+            convolution[80:80 + NY, 80:80 + NX] * depth / normalization
         )
 
-    # --------------------------------------------------------
-    # 2.5 Apply MATLAB depth weighting
-    # --------------------------------------------------------
-
-    # MATLAB:
-    # cz = gamma * sqrt(pi)
-    # dm = abs(zwm) .* dm ./ cz
-    #
-    # With flat topography and zero receiver clearance:
-    # zwm = zm
-
-    cz = GAMMA * np.sqrt(np.pi)
-
-    dm = np.abs(zm) * dm / cz
-
-    # --------------------------------------------------------
-    # 2.6 Optional MATLAB range restriction
-    # --------------------------------------------------------
-
     if restrict:
-
-        dm_min = dm.min()
-        dm_max = dm.max()
-
-        # Avoid division by zero if all values are equal
-        if dm_max > dm_min:
-            zoom = (ro_max - ro_min) / (dm_max - dm_min)
-            dm = (dm - dm_min) * zoom + ro_min
+        migration_min = migration.min()
+        migration_max = migration.max()
+        if migration_max > migration_min:
+            scale = (ro_max - ro_min) / (migration_max - migration_min)
+            migration = (migration - migration_min) * scale + ro_min
         else:
-            dm[:] = ro_min
-
-    # --------------------------------------------------------
-    # 2.7 Reshape into 3D model
-    # --------------------------------------------------------
-
-    migration = dm.reshape(NZ, NY, NX)
+            migration[:] = ro_min
 
     return migration
