@@ -19,10 +19,10 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gravity_migration_ml.ml.dataset import load_sample, sample_paths  # noqa: E402
-from visualization.plotly_3d import plot_sample_3d  # noqa: E402
 
-DATA_ROOT = ROOT / "outputs" / "ml" / "datasets"
-OUTPUT_ROOT = ROOT / "outputs" / "ml"
+TRAINING_ROOT = ROOT / "outputs" / "ml" / "training" / "E01"
+DATA_ROOT = TRAINING_ROOT / "data"
+OUTPUT_ROOT = ROOT / "outputs" / "ml" / "predict" / "E01"
 CELL_SIZE_M = 10.0
 DENSITY_THRESHOLD = 0.1
 VOLUME_SHAPE = (24, 64, 64)
@@ -79,10 +79,9 @@ def calculate_metrics(truth: np.ndarray, prediction: np.ndarray,
     }
 
 
-def save_comparison_figure(density: np.ndarray, migration_input: np.ndarray,
-                           prediction: np.ndarray, output: Path,
+def save_comparison_figure(density: np.ndarray, prediction: np.ndarray, output: Path,
                            sample_id: str) -> None:
-    """Save matching horizontal and vertical sections for three data volumes."""
+    """Save matching horizontal and vertical sections for truth and prediction."""
     nz, ny, nx = density.shape
     occupied = np.argwhere(density > 0)
     iz, iy, ix = (
@@ -90,27 +89,26 @@ def save_comparison_figure(density: np.ndarray, migration_input: np.ndarray,
         if occupied.size else (nz // 2, ny // 2, nx // 2)
     )
     sections = [
-        (density[iz], migration_input[iz], prediction[iz],
+        (density[iz], prediction[iz],
          [0, nx * CELL_SIZE_M, 0, ny * CELL_SIZE_M], "lower",
          f"Horizontal, z={(iz + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Northing (m)"),
-        (density[:, iy, :], migration_input[:, iy, :], prediction[:, iy, :],
+        (density[:, iy, :], prediction[:, iy, :],
          [0, nx * CELL_SIZE_M, nz * CELL_SIZE_M, 0], "upper",
          f"X-depth, y={(iy + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Depth (m)"),
-        (density[:, :, ix], migration_input[:, :, ix], prediction[:, :, ix],
+        (density[:, :, ix], prediction[:, :, ix],
          [0, ny * CELL_SIZE_M, nz * CELL_SIZE_M, 0], "upper",
          f"Y-depth, x={(ix + 0.5) * CELL_SIZE_M:g} m", "Northing (m)", "Depth (m)"),
     ]
-    fig, axes = plt.subplots(3, 3, figsize=(17, 12), constrained_layout=True)
+    fig, axes = plt.subplots(2, 3, figsize=(17, 8), constrained_layout=True)
     rows = (
         ("True density", "Density contrast (g/cm³)", 0.0, 1.0, "viridis"),
-        ("Normalized migration", "Relative migration amplitude", 0.0, 1.0, "viridis"),
         ("U-Net prediction", "Density contrast (g/cm³)", 0.0, 1.0, "viridis"),
     )
     for row, (row_label, units, low, high, color_map) in enumerate(rows):
         last_image = None
-        for column, (true_slice, migration_slice, predicted_slice,
+        for column, (true_slice, predicted_slice,
                      extent, origin, title, xlabel, ylabel) in enumerate(sections):
-            values = (true_slice, migration_slice, predicted_slice)[row]
+            values = (true_slice, predicted_slice)[row]
             last_image = axes[row, column].imshow(
                 values, origin=origin, extent=extent, cmap=color_map,
                 vmin=low, vmax=high, aspect="auto",
@@ -132,15 +130,13 @@ def main() -> None:
     parser.add_argument("--split", choices=("test", "validation"), default="test")
     parser.add_argument("--data-root", type=Path, default=DATA_ROOT)
     parser.add_argument("--output-root", type=Path, default=OUTPUT_ROOT)
-    parser.add_argument("--model", type=Path, default=OUTPUT_ROOT / "checkpoints" / "best_unet3d.keras")
+    parser.add_argument("--model", type=Path,
+                        default=TRAINING_ROOT / "checkpoints" / "best_unet3d.keras")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--visualize-count", type=int, default=3)
-    parser.add_argument("--gif-frames", type=int, default=24)
-    parser.add_argument("--no-gifs", action="store_true",
-                        help="Save Plotly HTML, but skip the slower rotating GIF renders.")
     args = parser.parse_args()
-    if args.visualize_count < 0 or args.gif_frames < 2:
-        parser.error("--visualize-count must be >= 0 and --gif-frames must be >= 2")
+    if args.visualize_count < 0:
+        parser.error("--visualize-count must be >= 0")
 
     data_root = args.data_root if args.data_root.is_absolute() else ROOT / args.data_root
     output_root = args.output_root if args.output_root.is_absolute() else ROOT / args.output_root
@@ -181,29 +177,9 @@ def main() -> None:
 
         if index <= args.visualize_count:
             save_comparison_figure(
-                true_density, migration_input, predicted_density,
+                true_density, predicted_density,
                 figures_dir / f"{path.stem}_comparison.png", path.stem,
             )
-            for view_name, reconstruction in (
-                ("migration", migration_input),
-                ("prediction", predicted_density),
-            ):
-                html_path = figures_dir / f"{path.stem}_{view_name}_interactive_3d.html"
-                try:
-                    plot_sample_3d(
-                        true_density,
-                        np.zeros((81, 81), dtype=np.float32),
-                        html_path,
-                        reconstruction=reconstruction,
-                        make_gif=not args.no_gifs,
-                        gif_frames=args.gif_frames,
-                        gif_duration_seconds=8.0,
-                    )
-                except Exception as error:
-                    print(
-                        f"Interactive {view_name} render skipped for {path.stem}: {error}",
-                        flush=True,
-                    )
         print(f"Predicted {index}/{len(files)}: {path.stem}; "
               f"MAE={result_metrics['density_mae']:.5g}; "
               f"IoU={result_metrics['body_iou']:.4f}; "

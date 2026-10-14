@@ -16,7 +16,7 @@ if str(SRC) not in sys.path:
 from physics.gravity_migration import calculate_migration  # noqa: E402
 
 DATASET_ROOT = SRC / "data" / "dataset"
-DEFAULT_OUTPUT = ROOT / "outputs" / "ml" / "datasets"
+DEFAULT_OUTPUT = ROOT / "outputs" / "ml" / "training" / "E01" / "data"
 VOLUME_SHAPE = (24, 64, 64)
 GRAVITY_SHAPE = (81, 81)
 

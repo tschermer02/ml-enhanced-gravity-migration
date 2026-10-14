@@ -29,8 +29,8 @@ MAX_EPOCHS = 100
 EARLY_STOPPING_PATIENCE = 15
 REDUCE_LR_PATIENCE = 5
 RANDOM_SEED = 42
-DATA_ROOT = ROOT / "outputs" / "ml" / "datasets"
-OUTPUT_ROOT = ROOT / "outputs" / "ml"
+OUTPUT_ROOT = ROOT / "outputs" / "ml" / "training" / "E01"
+DATA_ROOT = OUTPUT_ROOT / "data"
 
 
 class EpochLossPrinter(tf.keras.callbacks.Callback):
@@ -104,6 +104,7 @@ def main() -> None:
     ]
 
     config = {
+        "experiment": "E01",
         "input_shape": [24, 64, 64, 1],
         "learning_rate": LEARNING_RATE,
         "batch_size": args.batch_size,
