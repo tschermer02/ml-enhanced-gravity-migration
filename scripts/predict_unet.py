@@ -192,6 +192,7 @@ def write_experiment_comparison(rows: list[dict[str, str | float | bool]],
     fields.extend(("e01_body_volume_ratio", "e02_body_volume_ratio"))
 
     output.parent.mkdir(parents=True, exist_ok=True)
+    unverified_count = 0
     with output.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
@@ -208,6 +209,8 @@ def write_experiment_comparison(rows: list[dict[str, str | float | bool]],
                         "density" in e01_archive.files
                         and np.array_equal(e01_archive["density"], e02_archive["density"])
                     )
+            if not alignment_verified:
+                unverified_count += 1
             joined: dict[str, object] = {
                 "sample_id": e02_row["sample_id"],
                 "data_alignment_verified": alignment_verified,
@@ -222,14 +225,14 @@ def write_experiment_comparison(rows: list[dict[str, str | float | bool]],
             joined["e02_body_volume_ratio"] = e02_row["body_volume_ratio"]
             writer.writerow(joined)
     print(f"E01/E02 comparison table: {output}", flush=True)
-        if not alignment_verified:
-                print("Comparison rows are matched by sample ID; density-array alignment "
-                            "could not be verified because E01 prediction archives are absent.", flush=True)
+    if unverified_count:
+        print(f"Warning: density-array alignment was not verified for "
+              f"{unverified_count} comparison rows.", flush=True)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment", choices=("E01", E02_EXPERIMENT), default="E01")
+    parser.add_argument("--experiment", choices=("E01", E02_EXPERIMENT), default=E02_EXPERIMENT)
     parser.add_argument("--split", choices=("test", "validation"), default="test")
     parser.add_argument("--data-root", type=Path, default=None,
                         help="Defaults to the shared E01-preprocessed migration data.")
@@ -250,6 +253,8 @@ def main() -> None:
         parser.error("--visualize-count must be >= 0")
     if args.gif_frames < 2:
         parser.error("--gif-frames must be >= 2")
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be >= 1")
 
     experiment_training = E02_TRAINING_ROOT if args.experiment == E02_EXPERIMENT else TRAINING_ROOT
     experiment_output = E02_OUTPUT_ROOT if args.experiment == E02_EXPERIMENT else OUTPUT_ROOT
@@ -319,27 +324,24 @@ def main() -> None:
                     e02_figure, path.stem,
                 )
                 if args.experiment == E02_EXPERIMENT:
-                    e01_figure = OUTPUT_ROOT / "figures" / args.split / f"{path.stem}_comparison.png"
-                    if e01_figure.is_file():
-                        save_three_way_from_saved_figures(
-                            e01_figure,
-                            e02_figure,
-                            figures_dir / f"{path.stem}_E01_E02_comparison.png",
-                            path.stem,
-                        )
-                    else:
-                        print(
-                            f"E01 prediction archive/figure unavailable for {path.stem}; "
-                            "saved true/E02 figure only.", flush=True,
-                        )
+                    print(
+                        f"E01 prediction archive unavailable for {path.stem}; "
+                        "saved true/E02 figure only.", flush=True,
+                    )
 
             if args.experiment == E02_EXPERIMENT:
-                from visualization.plotly_3d import plot_sample_3d
+                try:
+                    from visualization.plotly_3d import plot_sample_3d
+                except ImportError as error:
+                    print(f"Optional Plotly visualization unavailable: {error}", flush=True)
+                    plot_sample_3d = None
 
                 plot_views = [("E02", predicted_density)]
                 if e01_prediction is not None:
                     plot_views.insert(0, ("E01", e01_prediction))
                 for view_name, reconstruction in plot_views:
+                    if plot_sample_3d is None:
+                        break
                     try:
                         plot_sample_3d(
                             true_density, np.zeros((81, 81), dtype=np.float32),
@@ -386,6 +388,7 @@ def main() -> None:
         write_experiment_comparison(
             rows, args.split,
             output_root / "predictions" / f"E01_vs_E02_{args.split}_metrics.csv",
+            predictions_dir,
         )
     print(json.dumps(summary, indent=2))
     print(f"Metrics: {metrics_csv}")
