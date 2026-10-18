@@ -19,6 +19,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from gravity_migration_ml.ml.dataset import load_sample, sample_paths  # noqa: E402
+from gravity_migration_ml.ml.e02_physics import gravity_forward_tf  # noqa: E402
 
 TRAINING_ROOT = ROOT / "outputs" / "ml" / "training" / "E01"
 DATA_ROOT = TRAINING_ROOT / "data"
@@ -29,6 +30,7 @@ E02_OUTPUT_ROOT = ROOT / "outputs" / "ml" / "predict" / E02_EXPERIMENT
 CELL_SIZE_M = 10.0
 DENSITY_THRESHOLD = 0.1
 VOLUME_SHAPE = (24, 64, 64)
+GRAVITY_ROOT = SRC / "data" / "dataset" / "forward_models"
 
 
 def calculate_metrics(truth: np.ndarray, prediction: np.ndarray,
@@ -130,41 +132,28 @@ def save_comparison_figure(density: np.ndarray, prediction: np.ndarray, output: 
     plt.close(fig)
 
 
-def save_three_way_comparison(density: np.ndarray, e01_prediction: np.ndarray,
-                              e02_prediction: np.ndarray, output: Path,
-                              sample_id: str) -> None:
-    """Plot true, E01, and E02 volumes on matching slices and density scales."""
-    nz, ny, nx = density.shape
-    occupied = np.argwhere(density > 0)
-    iz, iy, ix = (
-        np.rint(occupied.mean(axis=0)).astype(int)
-        if occupied.size else (nz // 2, ny // 2, nx // 2)
-    )
-    volumes = (density, e01_prediction, e02_prediction)
-    names = ("True density", "E01 balanced MSE", "E02 balanced Huber")
-    slices = (
-        (lambda volume: volume[iz], [0, nx * CELL_SIZE_M, 0, ny * CELL_SIZE_M],
-         "lower", f"Horizontal, z={(iz + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Northing (m)"),
-        (lambda volume: volume[:, iy, :], [0, nx * CELL_SIZE_M, nz * CELL_SIZE_M, 0],
-         "upper", f"X-depth, y={(iy + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Depth (m)"),
-        (lambda volume: volume[:, :, ix], [0, ny * CELL_SIZE_M, nz * CELL_SIZE_M, 0],
-         "upper", f"Y-depth, x={(ix + 0.5) * CELL_SIZE_M:g} m", "Northing (m)", "Depth (m)"),
-    )
-    fig, axes = plt.subplots(3, 3, figsize=(17, 12), constrained_layout=True)
-    for row, (volume, name) in enumerate(zip(volumes, names)):
-        for column, (extract, extent, origin, title, xlabel, ylabel) in enumerate(slices):
-            image = axes[row, column].imshow(
-                extract(volume), origin=origin, extent=extent, cmap="viridis",
-                vmin=0.0, vmax=1.0, aspect="auto",
-            )
-            axes[row, column].set(title=title, xlabel=xlabel, ylabel=ylabel)
-        fig.colorbar(image, ax=axes[row, :], shrink=0.85,
-                     label="Density contrast (g/cm³)")
-        axes[row, 0].annotate(
-            name, xy=(-0.2, 0.5), xycoords="axes fraction",
-            rotation=90, ha="center", va="center", fontsize=12,
-        )
-    fig.suptitle(f"E01 vs balanced-Huber E02: {sample_id}")
+def save_gravity_comparison(observed: np.ndarray, recovered: np.ndarray,
+                            output: Path, sample_id: str) -> None:
+    """Observed gravity, recovered gravity, and recovered-minus-observed residual."""
+    residual = recovered - observed
+    vmax = max(float(np.max(np.abs(observed))), float(np.max(np.abs(recovered))), 1e-10)
+    residual_max = max(float(np.max(np.abs(residual))), 1e-10)
+    extent = [-85, 715, -85, 715]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), constrained_layout=True)
+    for ax, values, title in zip(
+        axes, (observed, recovered, residual),
+        ("True Gravity", "Recovered Gravity", "Gravity Residual")
+    ):
+        if title == "Gravity Residual":
+            img = ax.imshow(values, origin="lower", extent=extent,
+                            cmap="RdBu_r", vmin=-residual_max, vmax=residual_max)
+        else:
+            img = ax.imshow(values, origin="lower", extent=extent,
+                            cmap="viridis", vmin=-vmax if np.min(values) < 0 else 0,
+                            vmax=vmax)
+        ax.set(title=title, xlabel="Easting (m)", ylabel="Northing (m)")
+        fig.colorbar(img, ax=ax, shrink=0.8, label="Gravity (mGal)")
+    fig.suptitle(f"Gravity Forward-Consistency Evaluation — {sample_id}")
     output.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output, dpi=160)
     plt.close(fig)
@@ -243,6 +232,9 @@ def main() -> None:
         "--visualize-count", type=int, default=None,
         help="Limit comparison figures to the first N samples; default creates one for every sample.",
     )
+    parser.add_argument("--plotly", action="store_true",
+                        help="Generate optional interactive Plotly HTML (off by default).")
+    parser.add_argument("--gravity-root", type=Path, default=GRAVITY_ROOT)
     parser.add_argument("--gif-frames", type=int, default=24)
     parser.add_argument("--no-gifs", action="store_true",
                         help="Write interactive HTML but skip the optional GIF export.")
@@ -264,6 +256,7 @@ def main() -> None:
     data_root = selected_data_root if selected_data_root.is_absolute() else ROOT / selected_data_root
     output_root = selected_output_root if selected_output_root.is_absolute() else ROOT / selected_output_root
     model_path = selected_model if selected_model.is_absolute() else ROOT / selected_model
+    gravity_root = args.gravity_root if args.gravity_root.is_absolute() else ROOT / args.gravity_root
     if (args.experiment == E02_EXPERIMENT and not args.overwrite
             and output_root.exists()
             and any(path.is_file() for path in output_root.rglob("*"))):
@@ -306,53 +299,41 @@ def main() -> None:
         )
 
         if args.visualize_count is None or index <= args.visualize_count:
-            e01_prediction = None
-            if args.experiment == E02_EXPERIMENT:
-                e01_path = OUTPUT_ROOT / "predictions" / args.split / path.name
-                if e01_path.is_file():
-                    with np.load(e01_path) as archive:
-                        e01_prediction = np.asarray(archive["prediction"], dtype=np.float32)
-            if e01_prediction is not None:
-                save_three_way_comparison(
-                    true_density, e01_prediction, predicted_density,
-                    figures_dir / f"{path.stem}_E01_E02_comparison.png", path.stem,
-                )
-            else:
-                e02_figure = figures_dir / f"{path.stem}_comparison.png"
-                save_comparison_figure(
-                    true_density, predicted_density,
-                    e02_figure, path.stem,
-                )
-                if args.experiment == E02_EXPERIMENT:
-                    print(
-                        f"E01 prediction archive unavailable for {path.stem}; "
-                        "saved true/E02 figure only.", flush=True,
-                    )
+            # Figure 1: Two-row density section comparison, matching the reference.
+            save_comparison_figure(
+                true_density, predicted_density,
+                figures_dir / f"{path.stem}_density_comparison.png", path.stem,
+            )
 
-            if args.experiment == E02_EXPERIMENT:
+            # Figure 2: Gravity from the predicted density, plus residual.
+            observed_path = gravity_root / args.split / path.name
+            if not observed_path.is_file():
+                raise FileNotFoundError(f"Original gravity missing: {observed_path}")
+            with np.load(observed_path) as archive:
+                observed_gravity = np.asarray(archive["gravity"], dtype=np.float32)
+            # Uses the tested FFT forward operator, avoiding a costly dense point-mass loop.
+            recovered_gravity = gravity_forward_tf(
+                tf.convert_to_tensor(predicted_density[None, ..., None], dtype=tf.float32)
+            ).numpy()[0, ..., 0]
+            save_gravity_comparison(
+                observed_gravity, recovered_gravity,
+                figures_dir / f"{path.stem}_gravity_comparison.png", path.stem,
+            )
+
+            # Interactive HTML and optional GIF are strictly opt-in.
+            if args.plotly:
                 try:
                     from visualization.plotly_3d import plot_sample_3d
-                except ImportError as error:
-                    print(f"Optional Plotly visualization unavailable: {error}", flush=True)
-                    plot_sample_3d = None
-
-                plot_views = [("E02", predicted_density)]
-                if e01_prediction is not None:
-                    plot_views.insert(0, ("E01", e01_prediction))
-                for view_name, reconstruction in plot_views:
-                    if plot_sample_3d is None:
-                        break
-                    try:
-                        plot_sample_3d(
-                            true_density, np.zeros((81, 81), dtype=np.float32),
-                            figures_dir / f"{path.stem}_{view_name}_3d.html",
-                            reconstruction=reconstruction,
-                            make_gif=not args.no_gifs,
-                            gif_frames=args.gif_frames,
-                            gif_duration_seconds=8.0,
-                        )
-                    except RuntimeError as error:
-                        print(f"Optional {view_name} Plotly export skipped: {error}", flush=True)
+                    plot_sample_3d(
+                        true_density, observed_gravity,
+                        figures_dir / f"{path.stem}_3d.html",
+                        reconstruction=predicted_density,
+                        make_gif=not args.no_gifs,
+                        gif_frames=args.gif_frames,
+                        gif_duration_seconds=8.0,
+                    )
+                except (ImportError, RuntimeError) as error:
+                    print(f"Optional Plotly export skipped: {error}", flush=True)
         print(f"Predicted {index}/{len(files)}: {path.stem}; "
               f"MAE={result_metrics['density_mae']:.5g}; "
               f"IoU={result_metrics['body_iou']:.4f}; "
