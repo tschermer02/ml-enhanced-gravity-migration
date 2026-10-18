@@ -1,0 +1,46 @@
+{
+  "experiment": "E02_balanced_huber",
+  "split": "test",
+  "sample_count": 3,
+  "empty_prediction_count": 0,
+  "density_threshold_gcm3": 0.1,
+  "empty_prediction_depth_penalty_m": 240.0,
+  "metrics": {
+    "density_mae": {
+      "mean": 0.021228993621965248,
+      "std": 0.009860731370358942
+    },
+    "density_rmse": {
+      "mean": 0.09813821812470754,
+      "std": 0.02896178411768911
+    },
+    "density_mae_inside_true_body": {
+      "mean": 0.21157655119895935,
+      "std": 0.09329129182208051
+    },
+    "body_iou": {
+      "mean": 0.258155134315587,
+      "std": 0.14051212841015512
+    },
+    "body_dice": {
+      "mean": 0.391673384587167,
+      "std": 0.16749686092315078
+    },
+    "body_volume_ratio": {
+      "mean": 4.627083333333334,
+      "std": 1.744628861240455
+    },
+    "top_depth_error_m": {
+      "mean": 63.333333333333336,
+      "std": 49.88876515698588
+    },
+    "bottom_depth_error_m": {
+      "mean": 63.333333333333336,
+      "std": 38.58612300930075
+    },
+    "thickness_error_m": {
+      "mean": 120.0,
+      "std": 8.16496580927726
+    }
+  }
+}
