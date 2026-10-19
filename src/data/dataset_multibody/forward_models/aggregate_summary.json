@@ -1,0 +1,12 @@
+{
+  "sample_count": 1200,
+  "completed_count": 1200,
+  "failed_count": 0,
+  "splits": {
+    "train": 1000,
+    "validation": 100,
+    "test": 100
+  },
+  "workers": 4,
+  "total_worker_runtime_seconds": 269.6948038005212
+}
