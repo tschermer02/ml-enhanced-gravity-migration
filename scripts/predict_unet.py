@@ -27,6 +27,13 @@ OUTPUT_ROOT = ROOT / "outputs" / "ml" / "predict" / "E01"
 E02_EXPERIMENT = "E02_balanced_huber"
 E02_TRAINING_ROOT = ROOT / "outputs" / "ml" / "training" / E02_EXPERIMENT
 E02_OUTPUT_ROOT = ROOT / "outputs" / "ml" / "predict" / E02_EXPERIMENT
+E03_EXPERIMENT = "E03"
+E03_TRAINING_ROOT = (
+    ROOT / "outputs" / "ml" / "training" / E03_EXPERIMENT
+)
+E03_OUTPUT_ROOT = (
+    ROOT / "outputs" / "ml" / "predict" / E03_EXPERIMENT
+)
 CELL_SIZE_M = 10.0
 DENSITY_THRESHOLD = 0.1
 VOLUME_SHAPE = (24, 64, 64)
@@ -219,9 +226,132 @@ def write_experiment_comparison(rows: list[dict[str, str | float | bool]],
               f"{unverified_count} comparison rows.", flush=True)
 
 
+# ============================================================
+# E03 VS E01 METRIC COMPARISON
+# ============================================================
+
+def write_e03_comparison(rows, split, output):
+    """
+    Compare E03 results against the existing E01 baseline.
+
+    Both experiments must use the same samples.
+    """
+
+    e01_metrics_path = (
+        OUTPUT_ROOT / "predictions" / f"{split}_metrics.csv"
+    )
+
+    if not e01_metrics_path.is_file():
+        print(
+            f"E01 metrics not found: {e01_metrics_path}",
+            flush=True,
+        )
+        return
+
+    with e01_metrics_path.open(
+        newline="", encoding="utf-8"
+    ) as stream:
+        e01_rows = {
+            row["sample_id"]: row
+            for row in csv.DictReader(stream)
+        }
+
+    metrics = [
+        "density_mae",
+        "density_rmse",
+        "density_mae_inside_true_body",
+        "body_iou",
+        "body_dice",
+        "body_volume_ratio",
+        "top_depth_error_m",
+        "bottom_depth_error_m",
+        "thickness_error_m",
+    ]
+
+    comparison_rows = []
+
+    for e03_row in rows:
+        sample_id = str(e03_row["sample_id"])
+
+        if sample_id not in e01_rows:
+            continue
+
+        e01_row = e01_rows[sample_id]
+
+        # Verify both experiments used the same true density.
+        e01_archive_path = (
+            OUTPUT_ROOT / "predictions" / split
+            / f"{sample_id}.npz"
+        )
+        e03_archive_path = (
+            E03_OUTPUT_ROOT / "predictions" / split
+            / f"{sample_id}.npz"
+        )
+
+        alignment_verified = False
+
+        if (
+            e01_archive_path.is_file()
+            and e03_archive_path.is_file()
+        ):
+            with (
+                np.load(e01_archive_path) as e01_archive,
+                np.load(e03_archive_path) as e03_archive,
+            ):
+                alignment_verified = np.array_equal(
+                    e01_archive["density"],
+                    e03_archive["density"],
+                )
+
+        if not alignment_verified:
+            print(
+                f"Skipping {sample_id}: sample alignment "
+                "could not be verified.",
+                flush=True,
+            )
+            continue
+
+        result = {"sample_id": sample_id}
+
+        for metric in metrics:
+            e01_value = float(e01_row[metric])
+            e03_value = float(e03_row[metric])
+
+            result[f"e01_{metric}"] = e01_value
+            result[f"e03_{metric}"] = e03_value
+            result[f"e03_minus_e01_{metric}"] = (
+                e03_value - e01_value
+            )
+
+        comparison_rows.append(result)
+
+    if not comparison_rows:
+        print("No aligned E01/E03 samples to compare.")
+        return
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    with output.open(
+        "w", newline="", encoding="utf-8"
+    ) as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=list(comparison_rows[0].keys()),
+        )
+        writer.writeheader()
+        writer.writerows(comparison_rows)
+
+    print(f"E01/E03 comparison saved: {output}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment", choices=("E01", E02_EXPERIMENT), default=E02_EXPERIMENT)
+    parser.add_argument(
+        "--experiment",
+        choices=("E01", E02_EXPERIMENT, E03_EXPERIMENT),
+        default=E03_EXPERIMENT,
+        help="Select the trained experiment to evaluate.",
+    )
     parser.add_argument("--split", choices=("test", "validation"), default="test")
     parser.add_argument("--data-root", type=Path, default=None,
                         help="Defaults to the shared E01-preprocessed migration data.")
@@ -248,8 +378,16 @@ def main() -> None:
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be >= 1")
 
-    experiment_training = E02_TRAINING_ROOT if args.experiment == E02_EXPERIMENT else TRAINING_ROOT
-    experiment_output = E02_OUTPUT_ROOT if args.experiment == E02_EXPERIMENT else OUTPUT_ROOT
+    # Select the correct training and prediction folders.
+    experiment_paths = {
+        "E01": (TRAINING_ROOT, OUTPUT_ROOT),
+        E02_EXPERIMENT: (E02_TRAINING_ROOT, E02_OUTPUT_ROOT),
+        E03_EXPERIMENT: (E03_TRAINING_ROOT, E03_OUTPUT_ROOT),
+    }
+
+    experiment_training, experiment_output = experiment_paths[
+        args.experiment
+    ]
     selected_data_root = args.data_root or DATA_ROOT
     selected_output_root = args.output_root or experiment_output
     selected_model = args.model or (experiment_training / "checkpoints" / "best_unet3d.keras")
@@ -257,12 +395,16 @@ def main() -> None:
     output_root = selected_output_root if selected_output_root.is_absolute() else ROOT / selected_output_root
     model_path = selected_model if selected_model.is_absolute() else ROOT / selected_model
     gravity_root = args.gravity_root if args.gravity_root.is_absolute() else ROOT / args.gravity_root
-    if (args.experiment == E02_EXPERIMENT and not args.overwrite
-            and output_root.exists()
-            and any(path.is_file() for path in output_root.rglob("*"))):
+    if (
+        args.experiment in (E02_EXPERIMENT, E03_EXPERIMENT)
+        and not args.overwrite
+        and output_root.exists()
+        and any(path.is_file() for path in output_root.rglob("*"))
+    ):
         parser.error(
-            f"E02 output directory is not empty: {output_root}; "
-            "choose another --output-root or pass --overwrite explicitly."
+            f"{args.experiment} output directory is not empty: "
+            f"{output_root}\n"
+            "Choose another --output-root or pass --overwrite."
         )
     if not model_path.is_file():
         raise FileNotFoundError(f"Trained model not found: {model_path}")
@@ -370,6 +512,13 @@ def main() -> None:
             rows, args.split,
             output_root / "predictions" / f"E01_vs_E02_{args.split}_metrics.csv",
             predictions_dir,
+        )
+    if args.experiment == E03_EXPERIMENT:
+        write_e03_comparison(
+            rows,
+            args.split,
+            output_root / "predictions"
+            / f"E01_vs_E03_{args.split}_metrics.csv",
         )
     print(json.dumps(summary, indent=2))
     print(f"Metrics: {metrics_csv}")
