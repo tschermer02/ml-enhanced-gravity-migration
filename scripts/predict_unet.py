@@ -10,7 +10,8 @@ Outputs:
   figures/<split>/*_density_comparison.png
   figures/<split>/*_gravity_comparison.png
 
-Optional: --plotly creates interactive HTML; --no-gifs suppresses GIF export.
+Optional: --plotly creates GIF-only 3D animations; --no-gifs requests HTML instead.
+Use --plots-only to recreate density-section PNGs from saved predictions without inference.
 Run from the repository root, for example:
   python scripts/predict_unet.py --experiment E04 --split test --visualize-count 100
 """
@@ -27,6 +28,7 @@ matplotlib.use("Agg")  # Save plots without a graphical desktop (e.g., CHPC).
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+from scipy.ndimage import label
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -154,52 +156,84 @@ def calculate_metrics(
 # 3. FIGURE 1: TRUE VS. PREDICTED DENSITY (2 ROWS X 3 COLUMNS)
 # ============================================================
 
+def _true_body_components(density: np.ndarray) -> list[np.ndarray]:
+    """Return masks for each face-connected true density body.
+
+    With E04, independent prisms can be widely separated, so their overall
+    centroid is often outside every body. Six-neighbor connectivity prevents
+    distinct prisms touching only at corners from being merged.
+    """
+    mask = density > 0
+    structure = np.zeros((3, 3, 3), dtype=np.uint8)
+    structure[1, 1, 1] = 1
+    structure[0, 1, 1] = structure[2, 1, 1] = 1
+    structure[1, 0, 1] = structure[1, 2, 1] = 1
+    structure[1, 1, 0] = structure[1, 1, 2] = 1
+    components, count = label(mask, structure=structure)
+    if count == 0:
+        return [mask]
+    return [components == i for i in range(1, count + 1)]
+
+
 def save_comparison_figure(
     density: np.ndarray, prediction: np.ndarray, output: Path, sample_id: str,
 ) -> None:
-    """Plot horizontal, X-depth and Y-depth sections for truth/prediction.
+    """Make three orthogonal slices through EACH true body.
 
-    Sections pass through the centroid of all true nonzero voxels.
-    For E04 this is a *global* centroid; one section may miss some bodies.
+    For each true body the upper row shows ground truth and the lower row the
+    network prediction, at identical depth/northing/easting coordinates.
+    This fixes blank depth views when multiple true bodies are separated.
     """
     nz, ny, nx = density.shape
-    occupied = np.argwhere(density > 0)
-    iz, iy, ix = (
-        np.rint(occupied.mean(axis=0)).astype(int)
-        if occupied.size else (nz // 2, ny // 2, nx // 2)
+    bodies = _true_body_components(density)
+    fig, axes = plt.subplots(
+        len(bodies) * 2, 3, figsize=(17, max(7, 6 * len(bodies))),
+        constrained_layout=True, squeeze=False,
     )
-
-    sections = [
-        (density[iz], prediction[iz],
-         [0, nx * CELL_SIZE_M, 0, ny * CELL_SIZE_M], "lower",
-         f"Horizontal, z={(iz + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Northing (m)"),
-        (density[:, iy, :], prediction[:, iy, :],
-         [0, nx * CELL_SIZE_M, nz * CELL_SIZE_M, 0], "upper",
-         f"X-depth, y={(iy + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Depth (m)"),
-        (density[:, :, ix], prediction[:, :, ix],
-         [0, ny * CELL_SIZE_M, nz * CELL_SIZE_M, 0], "upper",
-         f"Y-depth, x={(ix + 0.5) * CELL_SIZE_M:g} m", "Northing (m)", "Depth (m)"),
-    ]
-    fig, axes = plt.subplots(2, 3, figsize=(17, 8), constrained_layout=True)
-    for row, (label, volume_slices) in enumerate((
-        ("True density", 0), ("U-Net prediction", 1)
-    )):
-        last_image = None
-        for column, section in enumerate(sections):
-            truth_section, predicted_section, extent, origin, title, xlabel, ylabel = section
-            values = (truth_section, predicted_section)[volume_slices]
-            last_image = axes[row, column].imshow(
-                values, origin=origin, extent=extent, cmap="viridis",
-                vmin=0.0, vmax=1.0, aspect="auto",
+    for body_number, body_mask in enumerate(bodies, start=1):
+        coordinates = np.argwhere(body_mask)
+        if coordinates.size:
+            # A rectangular body's midpoint is inside it. For other shapes,
+            # select the occupied voxel closest to the component centroid.
+            centroid = coordinates.mean(axis=0)
+            nearest = np.argmin(np.sum((coordinates - centroid) ** 2, axis=1))
+            iz, iy, ix = (int(v) for v in coordinates[nearest])
+        else:
+            iz, iy, ix = nz // 2, ny // 2, nx // 2
+        sections = [
+            (density[iz], prediction[iz],
+             [0, nx * CELL_SIZE_M, 0, ny * CELL_SIZE_M], "lower",
+             f"Horizontal, z={(iz + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Northing (m)"),
+            (density[:, iy, :], prediction[:, iy, :],
+             [0, nx * CELL_SIZE_M, nz * CELL_SIZE_M, 0], "upper",
+             f"X-depth, y={(iy + 0.5) * CELL_SIZE_M:g} m", "Easting (m)", "Depth (m)"),
+            (density[:, :, ix], prediction[:, :, ix],
+             [0, ny * CELL_SIZE_M, nz * CELL_SIZE_M, 0], "upper",
+             f"Y-depth, x={(ix + 0.5) * CELL_SIZE_M:g} m", "Northing (m)", "Depth (m)"),
+        ]
+        for local_row, row_title in enumerate(("True density", "U-Net prediction")):
+            row = 2 * (body_number - 1) + local_row
+            last_image = None
+            for column, (true_slice, predicted_slice, extent,
+                         origin, title, xlabel, ylabel) in enumerate(sections):
+                values = true_slice if local_row == 0 else predicted_slice
+                last_image = axes[row, column].imshow(
+                    values, origin=origin, extent=extent, cmap="viridis",
+                    vmin=0.0, vmax=1.0, aspect="auto",
+                )
+                axes[row, column].set(
+                    title=f"Body {body_number}: {title}",
+                    xlabel=xlabel, ylabel=ylabel,
+                )
+            axes[row, 0].annotate(
+                row_title, xy=(-0.20, 0.5), xycoords="axes fraction",
+                rotation=90, ha="center", va="center", fontsize=11,
             )
-            axes[row, column].set(title=title, xlabel=xlabel, ylabel=ylabel)
-        fig.colorbar(last_image, ax=axes[row, :], shrink=0.85,
-                     label="Density contrast (g/cm³)")
-        axes[row, 0].annotate(
-            label, xy=(-0.2, 0.5), xycoords="axes fraction",
-            rotation=90, ha="center", va="center", fontsize=12,
-        )
-    fig.suptitle(f"Test sample: {sample_id}")
+            fig.colorbar(
+                last_image, ax=axes[row, :], shrink=0.85,
+                label="Density contrast (g/cm³)",
+            )
+    fig.suptitle(f"Test sample: {sample_id} ({len(bodies)} true bodies)")
     output.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output, dpi=160)
     plt.close(fig)
@@ -309,6 +343,44 @@ def write_baseline_comparison(
 # 6. PREDICTION AND REPORTING
 # ============================================================
 
+def _normalize_sample(sample: str) -> str:
+    """Accept '3', '000003', 'sample_000003', or 'sample_000003.npz'."""
+    stem = sample.strip().removesuffix(".npz")
+    if stem.startswith("sample_"):
+        stem = stem[len("sample_"):]
+    return f"sample_{int(stem):06d}.npz" if stem.isdigit() else stem + ".npz"
+
+
+def recreate_density_figures(predictions_dir: Path, figures_dir: Path,
+                             samples: list[str] | None, limit: int | None) -> None:
+    """Replot already saved predictions without loading any Keras model.
+
+    Use this after changing plotting code; it does not overwrite the NPZ
+    prediction arrays, metrics, or training results.
+    """
+    paths = sorted(predictions_dir.glob("*.npz"))
+    if samples is not None:
+        wanted = {_normalize_sample(sample) for sample in samples}
+        missing = wanted - {p.name for p in paths}
+        if missing:
+            print(f"Warning: missing saved predictions: {sorted(missing)}", flush=True)
+        paths = [p for p in paths if p.name in wanted]
+    if limit is not None:
+        paths = paths[:limit]
+    if not paths:
+        raise FileNotFoundError(f"No matching saved predictions in {predictions_dir}")
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    for index, archive_path in enumerate(paths, 1):
+        with np.load(archive_path) as archive:
+            density = np.asarray(archive["density"], dtype=np.float32)
+            prediction = np.asarray(archive["prediction"], dtype=np.float32)
+        if density.shape != VOLUME_SHAPE or prediction.shape != VOLUME_SHAPE:
+            raise ValueError(f"Unexpected density shape in {archive_path}")
+        dest = figures_dir / f"{archive_path.stem}_density_comparison.png"
+        save_comparison_figure(density, prediction, dest, archive_path.stem)
+        print(f"Replotted {index}/{len(paths)}: {dest}", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--experiment", choices=tuple(EXPERIMENTS), default="E04")
@@ -320,12 +392,16 @@ def main() -> None:
     parser.add_argument("--gravity-root", type=Path, default=None,
                         help="Override original gravity; E04 defaults to dataset_multibody.")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--samples", nargs="+", default=None,
+                        help="Select sample IDs, e.g., --samples 3 5 6.")
+    parser.add_argument("--plots-only", action="store_true",
+                        help="Recreate density PNGs from existing prediction NPZs; no model inference.")
     parser.add_argument("--visualize-count", type=int, default=None,
                         help="Number of samples to plot; 0 disables figures (default: all).")
     parser.add_argument("--plotly", action="store_true",
-                        help="Optionally export interactive HTML and GIFs.")
+                        help="Export Plotly GIFs only (unless --no-gifs is specified).")
     parser.add_argument("--no-gifs", action="store_true",
-                        help="With --plotly, export HTML only.")
+                        help="With --plotly, export HTML instead of GIFs.")
     parser.add_argument("--gif-frames", type=int, default=24)
     parser.add_argument("--overwrite", action="store_true",
                         help="Explicitly allow writing into a directory with existing results.")
@@ -346,6 +422,16 @@ def main() -> None:
     model_path = absolute_path(args.model or settings["training"] / "checkpoints" / "best_unet3d.keras")
     gravity_root = absolute_path(args.gravity_root or settings["gravity"])
 
+    # Plot-only mode reads EXISTING NPZ files and replaces density-section PNGs.
+    # It bypasses model loading and all overwrite protection for prediction data.
+    if args.plots_only:
+        recreate_density_figures(
+            output_root / "predictions" / args.split,
+            output_root / "figures" / args.split,
+            args.samples, args.limit,
+        )
+        return
+
     # E02/E03/E04 are protected from accidental overwrite; keep E01's legacy
     # behavior unchanged. Custom smoke-test output folders are safe to use.
     if (args.experiment != "E01" and not args.overwrite
@@ -355,7 +441,14 @@ def main() -> None:
 
     if not model_path.is_file():
         raise FileNotFoundError(f"Trained model not found: {model_path}")
-    files = sample_paths(data_root, args.split, args.limit)
+    files = sample_paths(data_root, args.split, None)
+    if args.samples is not None:
+        wanted = {_normalize_sample(name) for name in args.samples}
+        files = [path for path in files if path.name in wanted]
+        if not files:
+            raise FileNotFoundError(f"Requested samples not found in {data_root / args.split}")
+    if args.limit is not None:
+        files = files[:args.limit]
     predictions_dir = output_root / "predictions" / args.split
     figures_dir = output_root / "figures" / args.split
     predictions_dir.mkdir(parents=True, exist_ok=True)
@@ -433,7 +526,7 @@ def main() -> None:
                 try:
                     from visualization.plotly_3d import plot_sample_3d
                     plot_sample_3d(
-                        truth, observed, figures_dir / f"{path.stem}_3d.html",
+                        truth, observed, figures_dir / f"{path.stem}_3d.{'html' if args.no_gifs else 'gif'}",
                         reconstruction=prediction,
                         make_gif=not args.no_gifs,
                         gif_frames=args.gif_frames,
