@@ -1,0 +1,9 @@
+{
+  "splits": {
+    "train": 1000,
+    "validation": 100,
+    "test": 100
+  },
+  "restrict": false,
+  "normalization": "max_abs_per_sample"
+}
