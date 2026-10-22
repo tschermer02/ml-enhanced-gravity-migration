@@ -1,0 +1,46 @@
+{
+  "experiment": "E06",
+  "case": "E06D",
+  "split": "test",
+  "sample_count": 22,
+  "density_threshold_gcm3": 0.1,
+  "empty_prediction_count": 0,
+  "metrics": {
+    "density_mae": {
+      "mean": 0.01396902106617662,
+      "std": 0.005437400020680178
+    },
+    "density_rmse": {
+      "mean": 0.06875795617022297,
+      "std": 0.016388353227692345
+    },
+    "density_mae_inside_true_body": {
+      "mean": 0.17722398110411383,
+      "std": 0.09319545774913066
+    },
+    "body_iou": {
+      "mean": 0.7928034953096649,
+      "std": 0.0817799234784698
+    },
+    "body_dice": {
+      "mean": 0.8820421917132435,
+      "std": 0.05235972799446261
+    },
+    "body_volume_ratio": {
+      "mean": 1.1983953234965894,
+      "std": 0.20527251438870878
+    },
+    "top_depth_error_m": {
+      "mean": 8.636363636363637,
+      "std": 6.938335237488069
+    },
+    "bottom_depth_error_m": {
+      "mean": 0.0,
+      "std": 0.0
+    },
+    "thickness_error_m": {
+      "mean": 8.636363636363637,
+      "std": 6.938335237488069
+    }
+  }
+}

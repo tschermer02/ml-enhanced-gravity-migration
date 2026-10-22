@@ -1,0 +1,610 @@
+{
+  "case": "E05E",
+  "geology": "basement_relief",
+  "sample_count": 100,
+  "seed": 42,
+  "noise_percent": 0,
+  "paired_control": null,
+  "samples": [
+    {
+      "sample_id": "sample_000000",
+      "occupied_cells": 25676,
+      "density_max_gcm3": 0.4697893559932709,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000001",
+      "occupied_cells": 22914,
+      "density_max_gcm3": 0.5107434988021851,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000002",
+      "occupied_cells": 34191,
+      "density_max_gcm3": 0.38806629180908203,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000003",
+      "occupied_cells": 29734,
+      "density_max_gcm3": 0.22135107219219208,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000004",
+      "occupied_cells": 38586,
+      "density_max_gcm3": 0.24802234768867493,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000005",
+      "occupied_cells": 40392,
+      "density_max_gcm3": 0.4155161678791046,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000006",
+      "occupied_cells": 27887,
+      "density_max_gcm3": 0.23098990321159363,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000007",
+      "occupied_cells": 25487,
+      "density_max_gcm3": 0.44775301218032837,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000008",
+      "occupied_cells": 21787,
+      "density_max_gcm3": 0.32355996966362,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000009",
+      "occupied_cells": 32647,
+      "density_max_gcm3": 0.683350682258606,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000010",
+      "occupied_cells": 43404,
+      "density_max_gcm3": 0.6785237789154053,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000011",
+      "occupied_cells": 36538,
+      "density_max_gcm3": 0.5002355575561523,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000012",
+      "occupied_cells": 38314,
+      "density_max_gcm3": 0.2066284865140915,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000013",
+      "occupied_cells": 43356,
+      "density_max_gcm3": 0.6777471303939819,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000014",
+      "occupied_cells": 39032,
+      "density_max_gcm3": 0.6746216416358948,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000015",
+      "occupied_cells": 28746,
+      "density_max_gcm3": 0.6830914616584778,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000016",
+      "occupied_cells": 44514,
+      "density_max_gcm3": 0.4696309268474579,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000017",
+      "occupied_cells": 36819,
+      "density_max_gcm3": 0.6808300018310547,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000018",
+      "occupied_cells": 38569,
+      "density_max_gcm3": 0.44841432571411133,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000019",
+      "occupied_cells": 19440,
+      "density_max_gcm3": 0.2747100293636322,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000020",
+      "occupied_cells": 44575,
+      "density_max_gcm3": 0.5390766263008118,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000021",
+      "occupied_cells": 23654,
+      "density_max_gcm3": 0.5879374146461487,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000022",
+      "occupied_cells": 21822,
+      "density_max_gcm3": 0.2041330337524414,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000023",
+      "occupied_cells": 33511,
+      "density_max_gcm3": 0.21161335706710815,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000024",
+      "occupied_cells": 25379,
+      "density_max_gcm3": 0.21889133751392365,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000025",
+      "occupied_cells": 44700,
+      "density_max_gcm3": 0.23455141484737396,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000026",
+      "occupied_cells": 30129,
+      "density_max_gcm3": 0.3716447055339813,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000027",
+      "occupied_cells": 31514,
+      "density_max_gcm3": 0.481837660074234,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000028",
+      "occupied_cells": 44179,
+      "density_max_gcm3": 0.6347055435180664,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000029",
+      "occupied_cells": 46682,
+      "density_max_gcm3": 0.6025365591049194,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000030",
+      "occupied_cells": 25308,
+      "density_max_gcm3": 0.5335479378700256,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000031",
+      "occupied_cells": 18625,
+      "density_max_gcm3": 0.4852588474750519,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000032",
+      "occupied_cells": 22088,
+      "density_max_gcm3": 0.6979455351829529,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000033",
+      "occupied_cells": 31956,
+      "density_max_gcm3": 0.5315825343132019,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000034",
+      "occupied_cells": 40296,
+      "density_max_gcm3": 0.3837244510650635,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000035",
+      "occupied_cells": 18755,
+      "density_max_gcm3": 0.3683222830295563,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000036",
+      "occupied_cells": 46488,
+      "density_max_gcm3": 0.6843217015266418,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000037",
+      "occupied_cells": 42058,
+      "density_max_gcm3": 0.4950283467769623,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000038",
+      "occupied_cells": 29794,
+      "density_max_gcm3": 0.2666206359863281,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000039",
+      "occupied_cells": 28342,
+      "density_max_gcm3": 0.4333920478820801,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000040",
+      "occupied_cells": 23198,
+      "density_max_gcm3": 0.33040887117385864,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000041",
+      "occupied_cells": 45133,
+      "density_max_gcm3": 0.23345856368541718,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000042",
+      "occupied_cells": 46354,
+      "density_max_gcm3": 0.3031166195869446,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000043",
+      "occupied_cells": 25654,
+      "density_max_gcm3": 0.29039281606674194,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000044",
+      "occupied_cells": 20192,
+      "density_max_gcm3": 0.22646652162075043,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000045",
+      "occupied_cells": 18500,
+      "density_max_gcm3": 0.3783186972141266,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000046",
+      "occupied_cells": 33583,
+      "density_max_gcm3": 0.36366912722587585,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000047",
+      "occupied_cells": 42706,
+      "density_max_gcm3": 0.23422326147556305,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000048",
+      "occupied_cells": 28771,
+      "density_max_gcm3": 0.23902511596679688,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000049",
+      "occupied_cells": 37451,
+      "density_max_gcm3": 0.677921712398529,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000050",
+      "occupied_cells": 21773,
+      "density_max_gcm3": 0.5843762755393982,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000051",
+      "occupied_cells": 21973,
+      "density_max_gcm3": 0.40286946296691895,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000052",
+      "occupied_cells": 24990,
+      "density_max_gcm3": 0.436128705739975,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000053",
+      "occupied_cells": 28578,
+      "density_max_gcm3": 0.26680871844291687,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000054",
+      "occupied_cells": 41247,
+      "density_max_gcm3": 0.24777719378471375,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000055",
+      "occupied_cells": 31428,
+      "density_max_gcm3": 0.36131054162979126,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000056",
+      "occupied_cells": 46054,
+      "density_max_gcm3": 0.2873891592025757,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000057",
+      "occupied_cells": 30017,
+      "density_max_gcm3": 0.679560661315918,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000058",
+      "occupied_cells": 33155,
+      "density_max_gcm3": 0.5577628016471863,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000059",
+      "occupied_cells": 45830,
+      "density_max_gcm3": 0.4388442933559418,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000060",
+      "occupied_cells": 37952,
+      "density_max_gcm3": 0.28942379355430603,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000061",
+      "occupied_cells": 22737,
+      "density_max_gcm3": 0.5325639843940735,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000062",
+      "occupied_cells": 35110,
+      "density_max_gcm3": 0.25178471207618713,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000063",
+      "occupied_cells": 21943,
+      "density_max_gcm3": 0.5259450674057007,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000064",
+      "occupied_cells": 36890,
+      "density_max_gcm3": 0.25495150685310364,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000065",
+      "occupied_cells": 25977,
+      "density_max_gcm3": 0.4139634966850281,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000066",
+      "occupied_cells": 46332,
+      "density_max_gcm3": 0.24781988561153412,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000067",
+      "occupied_cells": 35101,
+      "density_max_gcm3": 0.2674238681793213,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000068",
+      "occupied_cells": 22081,
+      "density_max_gcm3": 0.3108293414115906,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000069",
+      "occupied_cells": 31550,
+      "density_max_gcm3": 0.4160762131214142,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000070",
+      "occupied_cells": 35017,
+      "density_max_gcm3": 0.4823122024536133,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000071",
+      "occupied_cells": 36975,
+      "density_max_gcm3": 0.22750450670719147,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000072",
+      "occupied_cells": 44843,
+      "density_max_gcm3": 0.3833557367324829,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000073",
+      "occupied_cells": 22903,
+      "density_max_gcm3": 0.5364069938659668,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000074",
+      "occupied_cells": 20247,
+      "density_max_gcm3": 0.5485962629318237,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000075",
+      "occupied_cells": 34155,
+      "density_max_gcm3": 0.2539578378200531,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000076",
+      "occupied_cells": 44377,
+      "density_max_gcm3": 0.6276944279670715,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000077",
+      "occupied_cells": 33255,
+      "density_max_gcm3": 0.2472362518310547,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000078",
+      "occupied_cells": 19003,
+      "density_max_gcm3": 0.26293888688087463,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000079",
+      "occupied_cells": 26933,
+      "density_max_gcm3": 0.2740766704082489,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000080",
+      "occupied_cells": 22575,
+      "density_max_gcm3": 0.6228783130645752,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000081",
+      "occupied_cells": 44899,
+      "density_max_gcm3": 0.5610756278038025,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000082",
+      "occupied_cells": 45605,
+      "density_max_gcm3": 0.5875258445739746,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000083",
+      "occupied_cells": 31126,
+      "density_max_gcm3": 0.33899885416030884,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000084",
+      "occupied_cells": 25814,
+      "density_max_gcm3": 0.545014500617981,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000085",
+      "occupied_cells": 26774,
+      "density_max_gcm3": 0.28148677945137024,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000086",
+      "occupied_cells": 44324,
+      "density_max_gcm3": 0.33116215467453003,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000087",
+      "occupied_cells": 26844,
+      "density_max_gcm3": 0.5506012439727783,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000088",
+      "occupied_cells": 39536,
+      "density_max_gcm3": 0.44410860538482666,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000089",
+      "occupied_cells": 37662,
+      "density_max_gcm3": 0.3872474730014801,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000090",
+      "occupied_cells": 30069,
+      "density_max_gcm3": 0.4773719906806946,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000091",
+      "occupied_cells": 35343,
+      "density_max_gcm3": 0.531501829624176,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000092",
+      "occupied_cells": 35802,
+      "density_max_gcm3": 0.43803325295448303,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000093",
+      "occupied_cells": 35767,
+      "density_max_gcm3": 0.2330869436264038,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000094",
+      "occupied_cells": 36711,
+      "density_max_gcm3": 0.4738841950893402,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000095",
+      "occupied_cells": 18809,
+      "density_max_gcm3": 0.6317585110664368,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000096",
+      "occupied_cells": 33048,
+      "density_max_gcm3": 0.32344797253608704,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000097",
+      "occupied_cells": 44609,
+      "density_max_gcm3": 0.6234099268913269,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000098",
+      "occupied_cells": 42529,
+      "density_max_gcm3": 0.6782905459403992,
+      "noise_std_mgal": 0.0
+    },
+    {
+      "sample_id": "sample_000099",
+      "occupied_cells": 24143,
+      "density_max_gcm3": 0.457327276468277,
+      "noise_std_mgal": 0.0
+    }
+  ]
+}

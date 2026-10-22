@@ -1,7 +1,7 @@
-"""Plotly views and GIF-only exports for single- and multi-body 3D density models.
+"""3D density visualization with voxel-accurate true-body surfaces.
 
-Density volume shape: (z, y, x). Coordinates are in meters and depth is positive downward.
-For GIF-only output, pass a path ending in .gif with make_gif=True.
+Density volume is (z, y, x), coordinates are meters, depth positive downward.
+Compatible with existing plot_sample_3d() and export_prediction_gifs.py callers.
 """
 from __future__ import annotations
 
@@ -12,22 +12,18 @@ import math
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy.ndimage import label
 
 CELL_M = 10.0
 
 
 def _domain_edges(nx: int, ny: int, nz: int):
-    """Wireframe of the full 3D model domain."""
     x1, y1, z1 = nx * CELL_M, ny * CELL_M, nz * CELL_M
     corners = [
         (0, 0, 0), (x1, 0, 0), (x1, y1, 0), (0, y1, 0),
         (0, 0, z1), (x1, 0, z1), (x1, y1, z1), (0, y1, z1),
     ]
-    edges = [
-        (0, 1), (1, 2), (2, 3), (3, 0), (4, 5), (5, 6),
-        (6, 7), (7, 4), (0, 4), (1, 5), (2, 6), (3, 7),
-    ]
+    edges = [(0, 1), (1, 2), (2, 3), (3, 0), (4, 5), (5, 6),
+             (6, 7), (7, 4), (0, 4), (1, 5), (2, 6), (3, 7)]
     xx, yy, zz = [], [], []
     for a, b in edges:
         for value, dest in zip(corners[a], (xx, yy, zz)):
@@ -37,69 +33,82 @@ def _domain_edges(nx: int, ny: int, nz: int):
         xx.append(None)
         yy.append(None)
         zz.append(None)
-    return go.Scatter3d(
-        x=xx, y=yy, z=zz, mode="lines",
-        line=dict(color="gray", width=3),
-        showlegend=False, hoverinfo="skip",
+    return go.Scatter3d(x=xx, y=yy, z=zz, mode="lines",
+                        line=dict(color="gray", width=3),
+                        showlegend=False, hoverinfo="skip")
+
+
+def _true_density_surface(density: np.ndarray) -> go.Mesh3d | None:
+    """Create exact boundary of thresholded occupied voxels, not bounding boxes.
+
+    Each exposed voxel face becomes two triangles. Internal cell faces are
+    excluded. Handles prisms, disconnected bodies, inclined features, domes,
+    irregular basement relief, and bodies touching the domain boundary.
+    No scikit-image dependency is required.
+    """
+    occupied = np.asarray(density) > 0.0
+    if not occupied.any():
+        return None
+
+    nz, ny, nx = occupied.shape
+    padded = np.pad(occupied, 1, mode="constant", constant_values=False)
+    core = padded[1:-1, 1:-1, 1:-1]
+
+    # 4 corners per face in (x,y,z) voxel-edge offsets.
+    faces = [
+        ((-1, 0, 0), [(0,0,0),(0,0,1),(0,1,1),(0,1,0)]),  # -x
+        ((+1, 0, 0), [(1,0,0),(1,1,0),(1,1,1),(1,0,1)]),  # +x
+        ((0,-1, 0), [(0,0,0),(1,0,0),(1,0,1),(0,0,1)]),  # -y
+        ((0,+1, 0), [(0,1,0),(0,1,1),(1,1,1),(1,1,0)]),  # +y
+        ((0, 0,-1), [(0,0,0),(0,1,0),(1,1,0),(1,0,0)]),  # -z
+        ((0, 0,+1), [(0,0,1),(1,0,1),(1,1,1),(0,1,1)]),  # +z
+    ]
+
+    vertices = []
+    triangles = []
+    for (dx, dy, dz), corners in faces:
+        neighbor = padded[
+            1 + dz: 1 + dz + nz,
+            1 + dy: 1 + dy + ny,
+            1 + dx: 1 + dx + nx,
+        ]
+        # Exposed faces only.
+        voxel_zyx = np.argwhere(core & ~neighbor)
+        if len(voxel_zyx) == 0:
+            continue
+        # Vectorized vertex generation for every exposed face of this direction.
+        xyz = voxel_zyx[:, [2, 1, 0]].astype(np.float32)
+        offsets = np.asarray(corners, dtype=np.float32)
+        quad_vertices = (xyz[:, None, :] + offsets[None, :, :]) * CELL_M
+        start = len(vertices)
+        vertices.extend(quad_vertices.reshape(-1, 3))
+        for k in range(len(xyz)):
+            a = start + 4*k
+            triangles.append((a, a+1, a+2))
+            triangles.append((a, a+2, a+3))
+
+    verts = np.asarray(vertices, dtype=np.float32)
+    tri = np.asarray(triangles, dtype=np.int32)
+    return go.Mesh3d(
+        x=verts[:,0], y=verts[:,1], z=verts[:,2],
+        i=tri[:,0], j=tri[:,1], k=tri[:,2],
+        color="royalblue", opacity=0.85, flatshading=True,
+        lighting=dict(ambient=0.55, diffuse=0.75, specular=0.08),
+        name="True occupied density", showlegend=False,
+        hoverinfo="skip",
     )
 
 
-def _prism_meshes(density: np.ndarray):
-    """Draw one true prism per 3D connected component, not a combined bounding box.
-
-    Uses 6-neighbor connectivity to avoid merging diagonally touching bodies.
-    Expected synthetic bodies are solid axis-aligned prisms separated by gaps.
-    """
-    mask = np.asarray(density) > 0
-    # 6-connected voxel components: face-sharing cells belong to one body.
-    structure = np.zeros((3, 3, 3), dtype=np.uint8)
-    structure[1, 1, 1] = 1
-    structure[0, 1, 1] = structure[2, 1, 1] = 1
-    structure[1, 0, 1] = structure[1, 2, 1] = 1
-    structure[1, 1, 0] = structure[1, 1, 2] = 1
-    labeled, body_count = label(mask, structure=structure)
-
-    meshes = []
-    for body_id in range(1, body_count + 1):
-        iz, iy, ix = np.where(labeled == body_id)
-        if ix.size == 0:
-            continue
-        x0, x1 = float(ix.min() * CELL_M), float((ix.max() + 1) * CELL_M)
-        y0, y1 = float(iy.min() * CELL_M), float((iy.max() + 1) * CELL_M)
-        z0, z1 = float(iz.min() * CELL_M), float((iz.max() + 1) * CELL_M)
-        x = [x0, x1, x1, x0, x0, x1, x1, x0]
-        y = [y0, y0, y1, y1, y0, y0, y1, y1]
-        z = [z0, z0, z0, z0, z1, z1, z1, z1]
-        meshes.append(go.Mesh3d(
-            x=x, y=y, z=z,
-            i=[0, 0, 4, 4, 0, 0, 1, 1, 2, 2, 3, 3],
-            j=[1, 2, 5, 6, 1, 5, 2, 6, 3, 7, 0, 4],
-            k=[2, 3, 6, 7, 5, 4, 6, 5, 7, 6, 4, 7],
-            color="royalblue", opacity=0.85, flatshading=True,
-            name=f"True body {body_id}", showlegend=False,
-            hovertemplate=(
-                "x=%{x:.0f} m<br>y=%{y:.0f} m<br>depth=%{z:.0f} m"
-                f"<extra>True body {body_id}</extra>"
-            ),
-        ))
-    return meshes
-
-
 def plot_sample_3d(
-    density,
-    gravity,
-    output_path,
-    reconstruction=None,
-    reconstruction_threshold=0.25,
-    make_gif=True,
-    gif_frames=80,
+    density, gravity, output_path, reconstruction=None,
+    reconstruction_threshold=0.25, make_gif=True, gif_frames=80,
     gif_duration_seconds=8.0,
 ):
-    """Plot true density bodies and an optional CNN reconstruction.
+    """Plot voxel-accurate true density and predicted 3D isosurfaces.
 
-    ``gravity`` is retained for compatibility with existing callers but unused.
-    ``reconstruction_threshold`` is a fraction of maximum positive prediction.
-    When ``output_path`` has suffix .gif and make_gif=True, NO HTML is written.
+    gravity is unused, retained for backward compatibility.
+    reconstruction_threshold is relative to maximum positive prediction.
+    A .gif output with make_gif=True produces only the GIF (no HTML).
     """
     density = np.asarray(density)
     if density.ndim != 3 or not np.isfinite(density).all():
@@ -117,13 +126,12 @@ def plot_sample_3d(
     if reconstruction is not None:
         titles.append("CNN prediction (relative amplitude)")
         specs[0].append({"type": "scene"})
-    fig = make_subplots(
-        rows=1, cols=len(titles), specs=specs, subplot_titles=titles,
-        horizontal_spacing=0.06,
-    )
+    fig = make_subplots(rows=1, cols=len(titles), specs=specs,
+                        subplot_titles=titles, horizontal_spacing=0.06)
     fig.add_trace(_domain_edges(nx, ny, nz), row=1, col=1)
-    for prism in _prism_meshes(density):
-        fig.add_trace(prism, row=1, col=1)
+    surface = _true_density_surface(density)
+    if surface is not None:
+        fig.add_trace(surface, row=1, col=1)
 
     if reconstruction is not None:
         fig.add_trace(_domain_edges(nx, ny, nz), row=1, col=2)
@@ -164,21 +172,18 @@ def plot_sample_3d(
                           duration_seconds=gif_duration_seconds,
                           has_reconstruction=reconstruction is not None)
         return output_path
-
-    # Preserve the original behavior for callers requesting HTML.
     fig.write_html(str(output_path), include_plotlyjs=True, full_html=True)
     if make_gif:
-        save_rotation_gif(fig, output_path.with_suffix(".gif"), frames=gif_frames,
-                          duration_seconds=gif_duration_seconds,
+        save_rotation_gif(fig, output_path.with_suffix(".gif"),
+                          frames=gif_frames, duration_seconds=gif_duration_seconds,
                           has_reconstruction=reconstruction is not None)
     return output_path
 
 
 def save_rotation_gif(fig, output_path, frames=80, duration_seconds=8.0,
                       has_reconstruction=False):
-    """Render a rotating 3D GIF via Plotly/Kaleido and Pillow."""
+    """Render rotating Plotly frames using Kaleido and Pillow."""
     from PIL import Image
-
     if frames < 2 or duration_seconds <= 0:
         raise ValueError("frames must be >= 2 and duration_seconds must be positive")
     output_path = Path(output_path)
@@ -186,10 +191,8 @@ def save_rotation_gif(fig, output_path, frames=80, duration_seconds=8.0,
     images = []
     for frame in range(frames):
         angle = 2 * math.pi * frame / frames
-        camera = dict(eye=dict(
-            x=2.05 * math.cos(angle),
-            y=2.05 * math.sin(angle), z=1.0,
-        ))
+        camera = dict(eye=dict(x=2.05 * math.cos(angle),
+                               y=2.05 * math.sin(angle), z=1.0))
         fig.update_layout(scene_camera=camera)
         if has_reconstruction:
             fig.update_layout(scene2_camera=camera)
@@ -198,16 +201,14 @@ def save_rotation_gif(fig, output_path, frames=80, duration_seconds=8.0,
         except Exception as exc:
             raise RuntimeError(
                 "Plotly GIF rendering failed. Check Kaleido and Chrome/Chromium "
-                "compatibility on this machine. Original error: " + str(exc)
+                "compatibility. Original error: " + str(exc)
             ) from exc
         with Image.open(BytesIO(png)) as frame_image:
             images.append(frame_image.convert("RGB"))
         print(f"Rendered frame {frame + 1}/{frames}", flush=True)
-    images[0].save(
-        output_path, save_all=True, append_images=images[1:],
-        duration=round(duration_seconds * 1000 / frames),
-        loop=0, disposal=2, optimize=False,
-    )
+    images[0].save(output_path, save_all=True, append_images=images[1:],
+                   duration=round(duration_seconds * 1000 / frames),
+                   loop=0, disposal=2, optimize=False)
     return output_path
 
 
@@ -216,12 +217,10 @@ def save_sample_3d(sample_name: str, density: np.ndarray, gravity: np.ndarray,
                    reconstruction: np.ndarray | None = None,
                    make_gif: bool = True, gif_frames: int = 80,
                    gif_duration_seconds: float = 8.0) -> Path:
-    """Save 3D visualization under a sample-named subdirectory."""
     sample_dir = Path(root) / str(sample_name)
     sample_dir.mkdir(parents=True, exist_ok=True)
     path = sample_dir / ("interactive_3d.gif" if make_gif else "interactive_3d.html")
-    return plot_sample_3d(
-        density, gravity, path, reconstruction=reconstruction,
-        make_gif=make_gif, gif_frames=gif_frames,
-        gif_duration_seconds=gif_duration_seconds,
-    )
+    return plot_sample_3d(density, gravity, path,
+                          reconstruction=reconstruction, make_gif=make_gif,
+                          gif_frames=gif_frames,
+                          gif_duration_seconds=gif_duration_seconds)

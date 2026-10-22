@@ -1,0 +1,48 @@
+{
+  "experiment": "E05",
+  "split": "test",
+  "sample_count": 100,
+  "empty_prediction_count": 0,
+  "density_threshold_gcm3": 0.1,
+  "empty_prediction_depth_penalty_m": 240.0,
+  "data_root": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/evaluation/E05F/data",
+  "model": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/training/E05/checkpoints/best_unet3d.keras",
+  "metrics": {
+    "density_mae": {
+      "mean": 0.008940885071642696,
+      "std": 0.002793453174012947
+    },
+    "density_rmse": {
+      "mean": 0.06650017246603966,
+      "std": 0.012814935409515985
+    },
+    "density_mae_inside_true_body": {
+      "mean": 0.20392892979085445,
+      "std": 0.11409715716733233
+    },
+    "body_iou": {
+      "mean": 0.25656364633488954,
+      "std": 0.14198975006105063
+    },
+    "body_dice": {
+      "mean": 0.38898164137831187,
+      "std": 0.17278040306622294
+    },
+    "body_volume_ratio": {
+      "mean": 5.529406360204884,
+      "std": 4.387606445251703
+    },
+    "top_depth_error_m": {
+      "mean": 32.5,
+      "std": 18.567444627627143
+    },
+    "bottom_depth_error_m": {
+      "mean": 52.9,
+      "std": 40.45478958046871
+    },
+    "thickness_error_m": {
+      "mean": 83.8,
+      "std": 35.57471011828487
+    }
+  }
+}

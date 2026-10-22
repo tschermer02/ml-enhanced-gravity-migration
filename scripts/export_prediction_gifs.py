@@ -41,7 +41,20 @@ from visualization.plotly_3d import plot_sample_3d
 # CONSTANTS
 # ============================================================
 
-EXPERIMENTS = ("E01", "E02_balanced_huber", "E03", "E04")
+EXPERIMENTS = (
+    "E01",
+    "E02_balanced_huber",
+    "E03",
+    "E04",
+    "E04B",
+    "E05",
+    "E06/E06A",
+    "E06/E06B",
+    "E06/E06C",
+    "E06/E06D",
+    "E06/E06E",
+    "E06/E06F",
+)
 EXPECTED_SHAPE = (24, 64, 64)
 
 
