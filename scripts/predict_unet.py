@@ -1,7 +1,9 @@
-"""Predict density volumes and evaluate E01, E02, E03, or E04 3D U-Nets.
+"""Predict density volumes and evaluate E01 through E05 3D U-Nets.
 
 E01-E03 use the original single-body dataset.
-E04 uses the separately generated multi-body dataset.
+E04 uses the original multi-body dataset.
+E04B uses a 2–3-body touching-allowed dataset.
+E05 reuses E04 data to isolate the vertical depth-loss change.
 
 Outputs:
   predictions/<split>/*.npz          Predicted and true density volumes
@@ -51,8 +53,10 @@ TRAINING_BASE = ROOT / "outputs" / "ml" / "training"
 PREDICTION_BASE = ROOT / "outputs" / "ml" / "predict"
 SINGLE_BODY_DATA_ROOT = TRAINING_BASE / "E01" / "data"
 MULTI_BODY_DATA_ROOT = TRAINING_BASE / "E04" / "data"
+E04B_DATA_ROOT = TRAINING_BASE / "E04B" / "data"
 SINGLE_BODY_GRAVITY_ROOT = SRC / "data" / "dataset" / "forward_models"
 MULTI_BODY_GRAVITY_ROOT = SRC / "data" / "dataset_multibody" / "forward_models"
+E04B_GRAVITY_ROOT = SRC / "data" / "dataset_multibody_e04b" / "forward_models"
 
 EXPERIMENTS = {
     "E01": {
@@ -77,6 +81,18 @@ EXPERIMENTS = {
         "training": TRAINING_BASE / "E04",
         "output": PREDICTION_BASE / "E04",
         "data": MULTI_BODY_DATA_ROOT,
+        "gravity": MULTI_BODY_GRAVITY_ROOT,
+    },
+    "E04B": {
+        "training": TRAINING_BASE / "E04B",
+        "output": PREDICTION_BASE / "E04B",
+        "data": E04B_DATA_ROOT,
+        "gravity": E04B_GRAVITY_ROOT,
+    },
+    "E05": {
+        "training": TRAINING_BASE / "E05",
+        "output": PREDICTION_BASE / "E05",
+        "data": MULTI_BODY_DATA_ROOT,  # Same test samples as E04.
         "gravity": MULTI_BODY_GRAVITY_ROOT,
     },
 }
@@ -339,6 +355,64 @@ def write_baseline_comparison(
     print(f"E01/{experiment} comparison: {output}", flush=True)
 
 
+def write_e04_e05_comparison(rows: list[dict], split: str,
+                             prediction_dir: Path, metrics_dir: Path) -> None:
+    """Compare E05 vs E04 only on samples with exactly identical truth.
+
+    This is a valid test-set comparison because E05 is trained and evaluated
+    on the E04 multi-body dataset. The E04 predictions must already exist.
+    """
+    baseline_root = EXPERIMENTS["E04"]["output"] / "predictions"
+    baseline_csv = baseline_root / f"{split}_metrics.csv"
+    if not baseline_csv.is_file():
+        print(f"E04 metrics not found; skipping E04/E05 comparison: {baseline_csv}", flush=True)
+        return
+    with baseline_csv.open(newline="", encoding="utf-8") as stream:
+        baseline = {row["sample_id"]: row for row in csv.DictReader(stream)}
+
+    metric_names = (
+        "density_mae", "density_rmse", "density_mae_inside_true_body",
+        "body_iou", "body_dice", "body_volume_ratio",
+        "top_depth_error_m", "bottom_depth_error_m", "thickness_error_m",
+    )
+    fields = ["sample_id"]
+    for name in metric_names:
+        fields += [f"e04_{name}", f"e05_{name}", f"e05_minus_e04_{name}"]
+
+    joined_rows = []
+    for row in rows:
+        sample_id = str(row["sample_id"])
+        if sample_id not in baseline:
+            continue
+        e04_file = baseline_root / split / f"{sample_id}.npz"
+        e05_file = prediction_dir / f"{sample_id}.npz"
+        if not e04_file.is_file() or not e05_file.is_file():
+            continue
+        with np.load(e04_file) as e04_archive, np.load(e05_file) as e05_archive:
+            aligned = np.array_equal(e04_archive["density"], e05_archive["density"])
+        if not aligned:
+            print(f"Skipping {sample_id}: E04 and E05 truths differ.", flush=True)
+            continue
+        result = {"sample_id": sample_id}
+        for metric in metric_names:
+            old = float(baseline[sample_id][metric])
+            new = float(row[metric])
+            result[f"e04_{metric}"] = old
+            result[f"e05_{metric}"] = new
+            result[f"e05_minus_e04_{metric}"] = new - old
+        joined_rows.append(result)
+
+    if not joined_rows:
+        print("No aligned E04/E05 saved predictions available; skipping comparison.", flush=True)
+        return
+    output = metrics_dir / f"E04_vs_E05_{split}_metrics.csv"
+    with output.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(joined_rows)
+    print(f"E04/E05 aligned comparison saved: {output}", flush=True)
+
+
 # ============================================================
 # 6. PREDICTION AND REPORTING
 # ============================================================
@@ -386,11 +460,11 @@ def main() -> None:
     parser.add_argument("--experiment", choices=tuple(EXPERIMENTS), default="E04")
     parser.add_argument("--split", choices=("test", "validation"), default="test")
     parser.add_argument("--data-root", type=Path, default=None,
-                        help="Override preprocessed data; E04 defaults to E04/data.")
+                        help="Override preprocessed data; each experiment has its own default.")
     parser.add_argument("--output-root", type=Path, default=None)
     parser.add_argument("--model", type=Path, default=None)
     parser.add_argument("--gravity-root", type=Path, default=None,
-                        help="Override original gravity; E04 defaults to dataset_multibody.")
+                        help="Override original gravity; defaults depend on the experiment.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--samples", nargs="+", default=None,
                         help="Select sample IDs, e.g., --samples 3 5 6.")
@@ -432,7 +506,7 @@ def main() -> None:
         )
         return
 
-    # E02/E03/E04 are protected from accidental overwrite; keep E01's legacy
+    # All experiments except E01 are protected from accidental overwrite; keep E01's legacy
     # behavior unchanged. Custom smoke-test output folders are safe to use.
     if (args.experiment != "E01" and not args.overwrite
             and output_root.exists()
@@ -578,8 +652,12 @@ def main() -> None:
             metrics_dir / f"E01_vs_{short_name}_{args.split}_metrics.csv",
             predictions_dir, short_name,
         )
-    elif args.experiment == "E04":
-        print("E04 uses different ground truth; skipping E01-E03 per-sample comparisons.", flush=True)
+    elif args.experiment == "E05":
+        # E05 and E04 share the same held-out dataset. Comparison still
+        # verifies exact target-array alignment for every sample.
+        write_e04_e05_comparison(rows, args.split, predictions_dir, metrics_dir)
+    elif args.experiment in {"E04", "E04B"}:
+        print(f"{args.experiment}: no cross-dataset comparison by sample ID.", flush=True)
 
     print(json.dumps(summary, indent=2))
     print(f"Metrics: {metrics_csv}")
