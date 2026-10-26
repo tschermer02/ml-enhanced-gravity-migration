@@ -1,7 +1,9 @@
-"""3D density visualization with voxel-accurate true-body surfaces.
+"""Voxel-accurate 3D true density and signed CNN prediction visualizations.
 
-Density volume is (z, y, x), coordinates are meters, depth positive downward.
-Compatible with existing plot_sample_3d() and export_prediction_gifs.py callers.
+Works with positive-only E01-E06 and signed E06_signed density volumes.
+Density axes are (z, y, x), units g/cm^3; depth is positive downward.
+A .gif path with make_gif=True saves GIF only. Requires Plotly, Kaleido,
+Pillow, and compatible Chrome/Chromium for GIF rendering.
 """
 from __future__ import annotations
 
@@ -14,22 +16,22 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 CELL_M = 10.0
+# True cells with |density| <= this are treated as background.
+TRUE_DENSITY_THRESHOLD = 0.1
 
 
 def _domain_edges(nx: int, ny: int, nz: int):
     x1, y1, z1 = nx * CELL_M, ny * CELL_M, nz * CELL_M
-    corners = [
-        (0, 0, 0), (x1, 0, 0), (x1, y1, 0), (0, y1, 0),
-        (0, 0, z1), (x1, 0, z1), (x1, y1, z1), (0, y1, z1),
-    ]
+    corners = [(0, 0, 0), (x1, 0, 0), (x1, y1, 0), (0, y1, 0),
+               (0, 0, z1), (x1, 0, z1), (x1, y1, z1), (0, y1, z1)]
     edges = [(0, 1), (1, 2), (2, 3), (3, 0), (4, 5), (5, 6),
              (6, 7), (7, 4), (0, 4), (1, 5), (2, 6), (3, 7)]
     xx, yy, zz = [], [], []
     for a, b in edges:
-        for value, dest in zip(corners[a], (xx, yy, zz)):
-            dest.append(value)
-        for value, dest in zip(corners[b], (xx, yy, zz)):
-            dest.append(value)
+        for v, dest in zip(corners[a], (xx, yy, zz)):
+            dest.append(v)
+        for v, dest in zip(corners[b], (xx, yy, zz)):
+            dest.append(v)
         xx.append(None)
         yy.append(None)
         zz.append(None)
@@ -38,65 +40,94 @@ def _domain_edges(nx: int, ny: int, nz: int):
                         showlegend=False, hoverinfo="skip")
 
 
-def _true_density_surface(density: np.ndarray) -> go.Mesh3d | None:
-    """Create exact boundary of thresholded occupied voxels, not bounding boxes.
+def _voxel_surface(mask: np.ndarray, *, color: str, name: str):
+    """Triangulate exposed voxel faces for one signed occupancy class.
 
-    Each exposed voxel face becomes two triangles. Internal cell faces are
-    excluded. Handles prisms, disconnected bodies, inclined features, domes,
-    irregular basement relief, and bodies touching the domain boundary.
-    No scikit-image dependency is required.
+    Quads are generated in vectorized batches; no rectangular bounding boxes.
+    Signs get independent meshes so adjacent positive/negative bodies are visible.
     """
-    occupied = np.asarray(density) > 0.0
-    if not occupied.any():
+    mask = np.asarray(mask, dtype=bool)
+    if mask.ndim != 3:
+        raise ValueError("Occupancy mask must be (z,y,x)")
+    if not mask.any():
         return None
-
-    nz, ny, nx = occupied.shape
-    padded = np.pad(occupied, 1, mode="constant", constant_values=False)
-    core = padded[1:-1, 1:-1, 1:-1]
-
-    # 4 corners per face in (x,y,z) voxel-edge offsets.
+    nz, ny, nx = mask.shape
+    padded = np.pad(mask, 1, constant_values=False)
     faces = [
-        ((-1, 0, 0), [(0,0,0),(0,0,1),(0,1,1),(0,1,0)]),  # -x
-        ((+1, 0, 0), [(1,0,0),(1,1,0),(1,1,1),(1,0,1)]),  # +x
-        ((0,-1, 0), [(0,0,0),(1,0,0),(1,0,1),(0,0,1)]),  # -y
-        ((0,+1, 0), [(0,1,0),(0,1,1),(1,1,1),(1,1,0)]),  # +y
-        ((0, 0,-1), [(0,0,0),(0,1,0),(1,1,0),(1,0,0)]),  # -z
-        ((0, 0,+1), [(0,0,1),(1,0,1),(1,1,1),(0,1,1)]),  # +z
+        ((-1, 0, 0), [(0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0)]),
+        ((1, 0, 0), [(1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 0, 1)]),
+        ((0, -1, 0), [(0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)]),
+        ((0, 1, 0), [(0, 1, 0), (0, 1, 1), (1, 1, 1), (1, 1, 0)]),
+        ((0, 0, -1), [(0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 0, 0)]),
+        ((0, 0, 1), [(0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)]),
     ]
-
     vertices = []
     triangles = []
+    vertex_offset = 0
     for (dx, dy, dz), corners in faces:
-        neighbor = padded[
-            1 + dz: 1 + dz + nz,
-            1 + dy: 1 + dy + ny,
-            1 + dx: 1 + dx + nx,
-        ]
-        # Exposed faces only.
-        voxel_zyx = np.argwhere(core & ~neighbor)
-        if len(voxel_zyx) == 0:
+        neighbor = padded[1 + dz:1 + dz + nz,
+                          1 + dy:1 + dy + ny,
+                          1 + dx:1 + dx + nx]
+        voxel_zyx = np.argwhere(mask & ~neighbor)
+        count = len(voxel_zyx)
+        if not count:
             continue
-        # Vectorized vertex generation for every exposed face of this direction.
-        xyz = voxel_zyx[:, [2, 1, 0]].astype(np.float32)
-        offsets = np.asarray(corners, dtype=np.float32)
-        quad_vertices = (xyz[:, None, :] + offsets[None, :, :]) * CELL_M
-        start = len(vertices)
-        vertices.extend(quad_vertices.reshape(-1, 3))
-        for k in range(len(xyz)):
-            a = start + 4*k
-            triangles.append((a, a+1, a+2))
-            triangles.append((a, a+2, a+3))
+        base_xyz = voxel_zyx[:, [2, 1, 0]].astype(np.float32)
+        corner_offsets = np.asarray(corners, dtype=np.float32)
+        vertices.append(((base_xyz[:, None, :] + corner_offsets) * CELL_M)
+                        .reshape(-1, 3))
+        start = vertex_offset + 4 * np.arange(count, dtype=np.int32)
+        triangles.append(np.stack((start, start + 1, start + 2), axis=1))
+        triangles.append(np.stack((start, start + 2, start + 3), axis=1))
+        vertex_offset += 4 * count
+    verts = np.concatenate(vertices, axis=0)
+    tris = np.concatenate(triangles, axis=0)
+    return go.Mesh3d(x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+                     i=tris[:, 0], j=tris[:, 1], k=tris[:, 2],
+                     color=color, opacity=0.85, flatshading=True,
+                     lighting=dict(ambient=0.55, diffuse=0.75, specular=0.08),
+                     name=name, showlegend=True, hoverinfo="name")
 
-    verts = np.asarray(vertices, dtype=np.float32)
-    tri = np.asarray(triangles, dtype=np.int32)
-    return go.Mesh3d(
-        x=verts[:,0], y=verts[:,1], z=verts[:,2],
-        i=tri[:,0], j=tri[:,1], k=tri[:,2],
-        color="royalblue", opacity=0.85, flatshading=True,
-        lighting=dict(ambient=0.55, diffuse=0.75, specular=0.08),
-        name="True occupied density", showlegend=False,
-        hoverinfo="skip",
-    )
+
+def _true_density_surfaces(density: np.ndarray):
+    """One accurate voxel surface per sign, supporting signed salt domes."""
+    positive = _voxel_surface(density >= TRUE_DENSITY_THRESHOLD,
+                              color="royalblue", name="True positive contrast")
+    negative = _voxel_surface(density <= -TRUE_DENSITY_THRESHOLD,
+                              color="deepskyblue", name="True negative contrast")
+    return [trace for trace in (positive, negative) if trace is not None]
+
+
+def _prediction_surfaces(reconstruction: np.ndarray, threshold: float):
+    """Render positive and negative predictions independently.
+
+    The supplied threshold is relative to the peak amplitude OF EACH SIGN.
+    Negative predictions use -density as their magnitude, so a signed model's
+    negative salt dome does not disappear when max(density) is near zero.
+    """
+    z, y, x = np.indices(reconstruction.shape)
+    coords = dict(x=((x + 0.5) * CELL_M).ravel(),
+                  y=((y + 0.5) * CELL_M).ravel(),
+                  z=((z + 0.5) * CELL_M).ravel())
+    outputs = []
+    sign_specs = [
+        (np.maximum(reconstruction, 0), "Predicted positive contrast", "YlOrRd"),
+        (np.maximum(-reconstruction, 0), "Predicted negative contrast", "Blues"),
+    ]
+    for amplitudes, name, colors in sign_specs:
+        peak = float(np.max(amplitudes))
+        # Prevent tiny signed numerical noise from producing a visual body.
+        if peak <= 1e-5:
+            continue
+        outputs.append(go.Isosurface(
+            **coords, value=(amplitudes / peak).ravel(),
+            isomin=threshold, isomax=1.0, surface_count=3,
+            colorscale=colors, opacity=0.55, showscale=False,
+            caps=dict(x_show=False, y_show=False, z_show=False),
+            name=name, showlegend=True,
+            hovertemplate="Relative |density|=%{value:.3f}<extra>" + name + "</extra>",
+        ))
+    return outputs
 
 
 def plot_sample_3d(
@@ -104,11 +135,10 @@ def plot_sample_3d(
     reconstruction_threshold=0.25, make_gif=True, gif_frames=80,
     gif_duration_seconds=8.0,
 ):
-    """Plot voxel-accurate true density and predicted 3D isosurfaces.
+    """Render signed ground truth and optional signed CNN prediction.
 
-    gravity is unused, retained for backward compatibility.
-    reconstruction_threshold is relative to maximum positive prediction.
-    A .gif output with make_gif=True produces only the GIF (no HTML).
+    gravity is retained for backwards compatibility but is not plotted.
+    reconstruction_threshold is a fraction of each sign's predicted peak.
     """
     density = np.asarray(density)
     if density.ndim != 3 or not np.isfinite(density).all():
@@ -121,34 +151,21 @@ def plot_sample_3d(
         if not 0 < reconstruction_threshold < 1:
             raise ValueError("reconstruction_threshold must be between 0 and 1")
 
-    titles = ["True density bodies"]
+    titles = ["True density contrast"]
     specs = [[{"type": "scene"}]]
     if reconstruction is not None:
-        titles.append("CNN prediction (relative amplitude)")
+        titles.append("CNN prediction (signed relative amplitude)")
         specs[0].append({"type": "scene"})
     fig = make_subplots(rows=1, cols=len(titles), specs=specs,
                         subplot_titles=titles, horizontal_spacing=0.06)
     fig.add_trace(_domain_edges(nx, ny, nz), row=1, col=1)
-    surface = _true_density_surface(density)
-    if surface is not None:
-        fig.add_trace(surface, row=1, col=1)
+    for trace in _true_density_surfaces(density):
+        fig.add_trace(trace, row=1, col=1)
 
     if reconstruction is not None:
         fig.add_trace(_domain_edges(nx, ny, nz), row=1, col=2)
-        peak = float(reconstruction.max())
-        if peak > 0:
-            z, y, x = np.indices(reconstruction.shape)
-            fig.add_trace(go.Isosurface(
-                x=((x + 0.5) * CELL_M).ravel(),
-                y=((y + 0.5) * CELL_M).ravel(),
-                z=((z + 0.5) * CELL_M).ravel(),
-                value=(reconstruction / peak).ravel(),
-                isomin=reconstruction_threshold, isomax=1,
-                surface_count=3, colorscale="Plasma", opacity=0.55,
-                showscale=False,
-                caps=dict(x_show=False, y_show=False, z_show=False),
-                hovertemplate="Relative amplitude=%{value:.3f}<extra></extra>",
-            ), row=1, col=2)
+        for trace in _prediction_surfaces(reconstruction, reconstruction_threshold):
+            fig.add_trace(trace, row=1, col=2)
 
     scene_style = dict(
         xaxis=dict(title="East (m)", range=[0, nx * CELL_M]),
@@ -157,11 +174,9 @@ def plot_sample_3d(
         aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.55),
         camera=dict(eye=dict(x=1.5, y=1.5, z=1.0)),
     )
-    fig.update_layout(
-        scene=scene_style, title="Synthetic density model",
-        width=1300 if reconstruction is not None else 850,
-        height=650, margin=dict(l=15, r=30, t=80, b=25),
-    )
+    fig.update_layout(scene=scene_style, title="Synthetic density contrast model",
+                      width=1300 if reconstruction is not None else 850,
+                      height=650, margin=dict(l=15, r=30, t=80, b=25))
     if reconstruction is not None:
         fig.update_layout(scene2=scene_style)
 
@@ -174,8 +189,8 @@ def plot_sample_3d(
         return output_path
     fig.write_html(str(output_path), include_plotlyjs=True, full_html=True)
     if make_gif:
-        save_rotation_gif(fig, output_path.with_suffix(".gif"),
-                          frames=gif_frames, duration_seconds=gif_duration_seconds,
+        save_rotation_gif(fig, output_path.with_suffix(".gif"), frames=gif_frames,
+                          duration_seconds=gif_duration_seconds,
                           has_reconstruction=reconstruction is not None)
     return output_path
 
@@ -184,6 +199,7 @@ def save_rotation_gif(fig, output_path, frames=80, duration_seconds=8.0,
                       has_reconstruction=False):
     """Render rotating Plotly frames using Kaleido and Pillow."""
     from PIL import Image
+
     if frames < 2 or duration_seconds <= 0:
         raise ValueError("frames must be >= 2 and duration_seconds must be positive")
     output_path = Path(output_path)
@@ -217,6 +233,7 @@ def save_sample_3d(sample_name: str, density: np.ndarray, gravity: np.ndarray,
                    reconstruction: np.ndarray | None = None,
                    make_gif: bool = True, gif_frames: int = 80,
                    gif_duration_seconds: float = 8.0) -> Path:
+    """Save 3D view under a sample-named subdirectory."""
     sample_dir = Path(root) / str(sample_name)
     sample_dir.mkdir(parents=True, exist_ok=True)
     path = sample_dir / ("interactive_3d.gif" if make_gif else "interactive_3d.html")
