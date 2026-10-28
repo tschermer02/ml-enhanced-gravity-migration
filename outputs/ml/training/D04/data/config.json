@@ -1,0 +1,31 @@
+{
+  "name": "D04",
+  "geometries": [
+    "compact",
+    "multiple",
+    "multiple_depths",
+    "dipping",
+    "salt_dome",
+    "basement"
+  ],
+  "train": 2000,
+  "validation": 160,
+  "test": 120,
+  "component": "gz",
+  "noise": [
+    0.0
+  ],
+  "paired_noise": false,
+  "density": "signed",
+  "min_bodies": 1,
+  "max_bodies": 3,
+  "gap_cells": 2,
+  "seed": 42,
+  "shape": [
+    24,
+    64,
+    64
+  ],
+  "cell_size_m": 10.0,
+  "noise_definition": "Gaussian std as percent of max abs clean response"
+}
