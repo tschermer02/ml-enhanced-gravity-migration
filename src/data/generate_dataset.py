@@ -1,152 +1,348 @@
+"""Balanced synthetic gravity datasets from configurable geological geometries.
 
+Run from the repository root::
+
+    python -m src.data.generate_dataset --name E08 --geometries compact multiple dipping salt_dome \
+        --train 2000 --validation 160 --test 100 --component gz --noise 0 5 10 15
+
+Counts mean saved samples, not underlying bodies. For paired noise, each repeated
+noise condition shares the same model within a group; total counts stay fixed.
 """
-Generate synthetic 3D density models.
+from __future__ import annotations
 
-Each model contains one rectangular prism with a uniform
-positive density contrast.
-
-Density model: (24, 64, 64) [z, y, x]
-
-Density units: g/cm^3
-Gravity units: mGal
-Distance units: meters
-
-Forward gravity and migration outputs are generated as separate pipeline stages.
-"""
-
+import argparse
+import csv
+import json
+import re
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
 
-# Project directories
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
-
-# Allow imports from the project source folder
-for candidate in (str(ROOT), str(SRC)):
-    if candidate not in sys.path:
-        sys.path.insert(0, candidate)
-
-# ============================================================
-# 1. PARAMETERS
-# ============================================================
-
-# Density model grid
-NX = 64
-NY = 64
-NZ = 24
-CELL_SIZE = 10.0  # meters
-
-# Prism dimensions [cells]
-WIDTH_MIN = 4
-WIDTH_MAX = 16
-THICKNESS_MIN = 2
-THICKNESS_MAX = 8
-
-# Prism top depth [cells]
-TOP_MIN = 2
-TOP_MAX = 16
-
-# Density contrast [g/cm^3]
-DENSITY_MIN = 0.2
-DENSITY_MAX = 1.0
-
-# Dataset sizes
-N_TRAIN = 1000
-N_VAL = 100
-N_TEST = 100
-
-# Random seed for reproducibility
-rng = np.random.default_rng(42)
-
-# Output directory
-OUTPUT_DIR = SRC / "data" / "dataset" / "synthetic_models"
+# Transitional compatibility: existing physics modules use `physics.*` imports.
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
+SHAPE = (24, 64, 64)
+NZ, NY, NX = SHAPE
+CELL_M = 10.0
+Z, Y, X = np.ogrid[:NZ, :NY, :NX]
+GEOMETRIES = ("compact", "multiple", "multiple_depths", "dipping", "salt_dome", "basement")
+SPLITS = ("train", "validation", "test")
 
 
-# ============================================================
-# 2. GENERATE RANDOM DENSITY MODEL
-# ============================================================
-
-def generate_density():
-    """Create one random rectangular prism in a 3D density grid."""
-
-    # Initialize empty density model
-    density = np.zeros((NZ, NY, NX), dtype=np.float32)
-
-    # Random prism dimensions [cells]
-    wx = rng.integers(WIDTH_MIN, WIDTH_MAX + 1)
-    wy = rng.integers(WIDTH_MIN, WIDTH_MAX + 1)
-    wz = rng.integers(THICKNESS_MIN, THICKNESS_MAX + 1)
-
-    # Random prism starting position [cells]
-    # Keep at least 2 cells between prism and lateral boundaries
-    x0 = rng.integers(2, NX - wx - 1)
-    y0 = rng.integers(2, NY - wy - 1)
-    z0 = rng.integers(TOP_MIN, min(TOP_MAX, NZ - wz) + 1)
-
-    # Random density contrast
-    rho = rng.uniform(DENSITY_MIN, DENSITY_MAX)
-
-    # Assign density contrast to the prism
-    density[
-        z0:z0 + wz,
-        y0:y0 + wy,
-        x0:x0 + wx
-    ] = rho
-
-    # Store prism boundaries in meters
-    prism = {
-        "x1": int(x0 * CELL_SIZE),
-        "x2": int((x0 + wx) * CELL_SIZE),
-        "y1": int(y0 * CELL_SIZE),
-        "y2": int((y0 + wy) * CELL_SIZE),
-        "z1": int(z0 * CELL_SIZE),
-        "z2": int((z0 + wz) * CELL_SIZE),
-        "rho": float(rho)
-    }
-
-    return density, prism
+def random_prism(rng, z_low=2, z_high=16):
+    wx, wy = rng.integers(4, 17, size=2)
+    wz = int(rng.integers(2, 9))
+    x0 = int(rng.integers(2, NX - 2 - wx + 1))
+    y0 = int(rng.integers(2, NY - 2 - wy + 1))
+    z0 = int(rng.integers(z_low, min(z_high, NZ - wz) + 1))
+    return x0, x0 + int(wx), y0, y0 + int(wy), z0, z0 + wz
 
 
-# ============================================================
-# 3. GENERATE DATASET
-# ============================================================
-
-def generate_dataset(split, n_samples):
-    """Generate density models and prism parameters for one split."""
-
-    # Create dataset folder
-    folder = OUTPUT_DIR / split
-    folder.mkdir(parents=True, exist_ok=True)
-
-    for i in range(n_samples):
-
-        # Generate random density model
-        density, prism = generate_density()
-
-        # Save only the synthetic model and its generating parameters.
-        np.savez_compressed(
-            folder / f"sample_{i:06d}.npz",
-            density=density,
-            **prism
-        )
-
-        # Print progress every 25 samples
-        if (i + 1) % 25 == 0:
-            print(f"{split}: {i + 1}/{n_samples}")
-
-    print(f"Finished generating {split} dataset.")
+def draw_prism(density, bounds, value):
+    x0, x1, y0, y1, z0, z1 = bounds
+    density[z0:z1, y0:y1, x0:x1] = value
 
 
-# ============================================================
-# 4. MAIN
-# ============================================================
+def separated(a, b, gap):
+    ax0, ax1, ay0, ay1, az0, az1 = a
+    bx0, bx1, by0, by1, bz0, bz1 = b
+    return (ax1 + gap <= bx0 or bx1 + gap <= ax0 or
+            ay1 + gap <= by0 or by1 + gap <= ay0 or
+            az1 + gap <= bz0 or bz1 + gap <= az0)
+
+
+def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
+                     density_sign="positive"):
+    """Build a density volume using the original geometry recipes.
+
+    `multiple` uses a configurable number of separated prisms. The remaining
+    modes retain the shapes of the existing research generators.
+    """
+    rho = np.zeros(SHAPE, dtype=np.float32)
+    if geometry == "compact":
+        draw_prism(rho, random_prism(rng), float(rng.uniform(.2, 1.)))
+    elif geometry == "multiple":
+        count = int(rng.integers(min_bodies, max_bodies + 1))
+        bounds = []
+        for n in range(count):
+            for _ in range(1000):
+                candidate = random_prism(rng)
+                if all(separated(candidate, other, gap_cells) for other in bounds):
+                    break
+            else:
+                raise RuntimeError(f"Could not place prism {n+1}; reduce body count or gap")
+            draw_prism(rho, candidate, float(rng.uniform(.2, 1.)))
+            bounds.append(candidate)
+    elif geometry == "multiple_depths":
+        for lo, hi in ((2, 7), (8, 14), (15, 22)):
+            wx, wy = rng.integers(4, 16, size=2)
+            wz = int(rng.integers(2, min(6, hi - lo) + 1))
+            x0 = int(rng.integers(2, NX - 2 - wx + 1))
+            y0 = int(rng.integers(2, NY - 2 - wy + 1))
+            z0 = int(rng.integers(lo, hi - wz + 1))
+            draw_prism(rho, (x0, x0 + int(wx), y0, y0 + int(wy), z0, z0 + wz),
+                       float(rng.uniform(.2, 1.)))
+    elif geometry == "dipping":
+        x0 = int(rng.integers(6, 17))
+        length = int(rng.integers(25, 43))
+        y0 = int(rng.integers(8, 43))
+        width = int(rng.integers(6, 15))
+        z_start = float(rng.uniform(4., 8.))
+        dip = float(rng.uniform(.16, .34)) * int(rng.choice([-1, 1]))
+        if dip < 0:
+            z_start = float(rng.uniform(14., 19.))
+        thickness = float(rng.uniform(1., 2.2))
+        mask = ((X >= x0) & (X < x0 + length) &
+                (Y >= y0) & (Y < y0 + width) &
+                (np.abs(Z - (z_start + dip * (X - x0))) <= thickness))
+        rho = (mask * float(rng.uniform(.2, 1.))).astype(np.float32)
+    elif geometry == "salt_dome":
+        xc, yc = float(rng.uniform(22, 42)), float(rng.uniform(22, 42))
+        r2 = (X - xc) ** 2 + (Y - yc) ** 2
+        stem_r = float(rng.uniform(4., 7.))
+        stem_top = int(rng.integers(6, 10))
+        cap_top = int(rng.integers(2, 6))
+        center = float(rng.uniform(7., 10.))
+        cap_r = (float(rng.uniform(7., 10.)) + float(rng.uniform(2., 5.)) *
+                 np.exp(-((Z - center) / float(rng.uniform(2., 3.8))) ** 2))
+        mask = ((r2 <= stem_r ** 2) & (Z >= stem_top) & (Z < 23)) | \
+               ((r2 <= cap_r ** 2) & (Z >= cap_top) & (Z <= 16))
+        rho = (mask * float(rng.uniform(.2, .8))).astype(np.float32)
+    elif geometry == "basement":
+        mean = float(rng.uniform(12, 19))
+        ax, ay = float(rng.uniform(1., 3.)), float(rng.uniform(1., 3.))
+        px, py = rng.uniform(0, 2 * np.pi, 2)
+        top = mean + ax * np.sin(2 * np.pi * X / NX + px) + \
+              ay * np.cos(2 * np.pi * Y / NY + py)
+        rho = ((Z >= top) * float(rng.uniform(.2, .7))).astype(np.float32)
+    else:
+        raise ValueError(f"Unknown geometry: {geometry}")
+
+    # A single sign per sample keeps geological bodies interpretable. Both signs
+    # are used across samples when density_sign='signed'.
+    if density_sign == "negative" or (density_sign == "signed" and rng.integers(2) == 0):
+        rho = -rho
+    if rho.shape != SHAPE or not np.isfinite(rho).all() or not np.any(rho):
+        raise ValueError(f"Invalid generated density: {geometry}")
+    return rho
+
+
+def allocate(count, geometries, noise_levels, rng, paired_noise=False):
+    """Balanced assignments; differ by at most one among conditions.
+
+    With paired noise, assign complete noise groups whenever possible.
+    Incomplete groups still obey the requested total number of saved samples.
+    """
+    conditions = [(g, float(n)) for g in geometries for n in noise_levels]
+    rng.shuffle(conditions)
+    if paired_noise:
+        # Balance distinct underlying model groups across geometries.
+        full, extra = divmod(count, len(noise_levels))
+        gs = [geometries[i % len(geometries)] for i in range(full)]
+        rng.shuffle(gs)
+        rows = []
+        for model_id, geom in enumerate(gs):
+            for n in noise_levels:
+                rows.append((geom, float(n), model_id))
+        # Partial last group: deterministic spread, with no overproduction.
+        if extra:
+            geom = geometries[full % len(geometries)]
+            levels = list(noise_levels)
+            rng.shuffle(levels)
+            rows += [(geom, float(n), full) for n in levels[:extra]]
+    else:
+        combos = [conditions[i % len(conditions)] for i in range(count)]
+        rng.shuffle(combos)
+        rows = [(g, n, i) for i, (g, n) in enumerate(combos)]
+    rng.shuffle(rows)
+    return rows
+
+
+def physics_for_sample(job):
+    """Run the selected existing forward and migration operators."""
+    path, component, noise, seed = job
+    path = Path(path)
+    with np.load(path) as arr:
+        density = np.asarray(arr["density"], dtype=np.float32)
+        model_id = int(arr["model_id"])
+        geometry = str(arr["geometry"].item())
+    if component == "gz":
+        from src.physics.gravity_forward import calculate_gravity
+        from src.physics.gravity_migration import calculate_migration
+        unit = "mGal"
+    else:
+        from src.physics.gravity_gradient_forward import calculate_gzz as calculate_gravity
+        from src.physics.gravity_gradient_migration import calculate_gzz_migration as calculate_migration
+        unit = "E"
+    clean = np.asarray(calculate_gravity(density), dtype=np.float64)
+    std = float(noise) / 100 * float(np.max(np.abs(clean)))
+    # Keep the same standard normal noise field for paired variants.
+    geom_code = GEOMETRIES.index(geometry)
+    rng = np.random.default_rng(np.random.SeedSequence([seed, model_id, geom_code, 991]))
+    measured = clean + std * rng.standard_normal(clean.shape)
+    migration = np.asarray(calculate_migration(measured, restrict=False), dtype=np.float64)
+    scale = max(float(np.max(np.abs(migration))), 1e-8)
+    if not np.isfinite(migration).all():
+        raise ValueError(f"Nonfinite migration: {path}")
+    # Save one self-contained sample, without requiring a second data directory.
+    with np.load(path) as arr:
+        initial = {key: arr[key] for key in arr.files}
+    np.savez_compressed(path, **initial, gravity=measured.astype(np.float32),
+                        gravity_clean=clean.astype(np.float32),
+                        migration=migration.astype(np.float32),
+                        migration_input=(migration / scale).astype(np.float32),
+                        migration_scale=np.float64(scale), noise_std=np.float64(std),
+                        observation_component=np.str_(component.upper()),
+                        observation_unit=np.str_(unit))
+    return str(path)
+
+
+def generate_dataset(args):
+    name = args.name
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name):
+        raise ValueError("Dataset name may contain only letters, numbers, - and _")
+    root = ROOT / "outputs" / "ml" / "training" / name / "data"
+    geom = list(dict.fromkeys(args.geometries))
+    noise = list(dict.fromkeys(float(v) for v in args.noise))
+    if not geom or not noise or min(noise) < 0 or not np.isfinite(noise).all():
+        raise ValueError("Specify valid geometries and nonnegative noise levels")
+    if args.min_bodies < 1 or args.max_bodies < args.min_bodies or args.gap_cells < 0:
+        raise ValueError("Invalid body count or separation")
+    if args.workers < 1 or min(args.train, args.validation, args.test) < 0:
+        raise ValueError("Invalid split counts or workers")
+    if args.train + args.validation + args.test < 1:
+        raise ValueError("At least one sample is required")
+    config = dict(name=name, geometries=geom, train=args.train, validation=args.validation,
+                  test=args.test, component=args.component, noise=noise, paired_noise=args.paired_noise,
+                  density=args.density, min_bodies=args.min_bodies,
+                  max_bodies=args.max_bodies, gap_cells=args.gap_cells, seed=args.seed,
+                  shape=list(SHAPE), cell_size_m=CELL_M,
+                  noise_definition="Gaussian std as percent of max abs clean response")
+    config_path = root / "config.json"
+    if config_path.exists():
+        previous = json.loads(config_path.read_text())
+        if previous != config:
+            raise ValueError("Existing dataset config differs; choose another --name")
+    elif root.exists() and any(root.iterdir()):
+        raise FileExistsError(f"Directory exists without matching config: {root}")
+
+    # Store seeds independent of sample ordering. Paired group IDs refer to a
+    # single geology model within each split (never across splits).
+    rows = []
+    for split_index, (split, count) in enumerate(zip(SPLITS, (args.train, args.validation, args.test))):
+        rng = np.random.default_rng(np.random.SeedSequence([args.seed, split_index, 17]))
+        assignment = allocate(count, geom, noise, rng, args.paired_noise)
+        for idx, (geometry, level, group) in enumerate(assignment):
+            sid = f"sample_{idx:06d}"
+            rows.append(dict(split=split, sample_id=sid, geometry=geometry,
+                             noise_percent=level, model_id=int(group)))
+    if args.stage == "physics" and not config_path.exists():
+        raise FileNotFoundError("Run --stage models first")
+    if args.stage in ("models", "all"):
+        for split_index, split in enumerate(SPLITS):
+            cache = {}
+
+            split_rows = [r for r in rows if r["split"] == split]
+            total = len(split_rows)
+
+            for i, row in enumerate(split_rows, 1):
+                path = root / split / f'{row["sample_id"]}.npz'
+
+                if not path.exists() or args.overwrite:
+                    group_key = (row["geometry"], row["model_id"])
+
+                    if group_key not in cache:
+                        seq = np.random.SeedSequence([
+                            args.seed,
+                            split_index,
+                            GEOMETRIES.index(row["geometry"]),
+                            row["model_id"]
+                        ])
+
+                        rng = np.random.default_rng(seq)
+
+                        cache[group_key] = generate_density(
+                            row["geometry"], rng,
+                            args.min_bodies, args.max_bodies,
+                            args.gap_cells, args.density
+                        )
+
+                    path.parent.mkdir(parents=True, exist_ok=True)
+
+                    np.savez_compressed(
+                        path,
+                        density=cache[group_key],
+                        geometry=np.str_(row["geometry"]),
+                        model_id=np.int32(row["model_id"]),
+                        noise_percent=np.float64(row["noise_percent"])
+                    )
+
+                # Print progress every 25 samples
+                if i % 25 == 0 or i == total:
+                    print(f"{split}: {i}/{total}", flush=True)
+
+            print(f"Finished generating {split} dataset.", flush=True)
+    root.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(config, indent=2))
+    with (root / "manifest.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    if args.stage in ("physics", "all"):
+        jobs = []
+        for split_index, split in enumerate(SPLITS):
+            for row in (r for r in rows if r["split"] == split):
+                path = root / split / f'{row["sample_id"]}.npz'
+                if not path.exists():
+                    raise FileNotFoundError(path)
+                if not args.overwrite:
+                    with np.load(path) as sample:
+                        if "migration_input" in sample:
+                            continue
+                jobs.append((str(path), args.component, row["noise_percent"],
+                             args.seed + split_index * 100000))
+        if args.workers == 1:
+            for i, job in enumerate(jobs, 1):
+                physics_for_sample(job)
+
+                if i % 25 == 0 or i == len(jobs):
+                    print(f"Physics: {i}/{len(jobs)}", flush=True)
+
+        else:
+            with ProcessPoolExecutor(max_workers=args.workers) as pool:
+                for i, _ in enumerate(pool.map(physics_for_sample, jobs), 1):
+
+                    if i % 25 == 0 or i == len(jobs):
+                        print(f"Physics: {i}/{len(jobs)}", flush=True)
+
+        print("Finished calculating gravity and migration.", flush=True)
+    print(f"Dataset: {root} | train={args.train}, validation={args.validation}, test={args.test}")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--name", required=True, help="Experiment name (e.g., E01, E02, E07)")
+    p.add_argument("--geometries", nargs="+", choices=GEOMETRIES, default=["compact"])
+    p.add_argument("--train", type=int, default=1000)
+    p.add_argument("--validation", type=int, default=100)
+    p.add_argument("--test", type=int, default=100)
+    p.add_argument("--min-bodies", type=int, default=1)
+    p.add_argument("--max-bodies", type=int, default=3)
+    p.add_argument("--gap-cells", type=int, default=2)
+    p.add_argument("--density", choices=("positive", "negative", "signed"), default="positive")
+    p.add_argument("--component", choices=("gz", "gzz"), default="gz")
+    p.add_argument("--noise", nargs="+", type=float, default=[0.])
+    p.add_argument("--paired-noise", action="store_true")
+    p.add_argument("--stage", choices=("models", "physics", "all"), default="all")
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--workers", type=int, default=1)
+    p.add_argument("--overwrite", action="store_true")
+    args = p.parse_args()
+    generate_dataset(args)
+
 
 if __name__ == "__main__":
-
-    generate_dataset("train", N_TRAIN)
-    generate_dataset("validation", N_VAL)
-    generate_dataset("test", N_TEST)
-
-    print("Dataset generation complete.")
+    main()

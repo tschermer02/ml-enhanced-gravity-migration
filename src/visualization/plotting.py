@@ -127,3 +127,150 @@ def save_sample_plots(sample_name: str, gravity: np.ndarray, density: np.ndarray
     folder = Path(root) / sample_name
     plot_gravity(gravity, folder / "gravity.png")
     plot_density_slices(density, folder / "density.png")
+
+# Cross-section comparison tools (from export_three_panel_cross_sections.py)
+from scipy import ndimage
+from matplotlib.colors import TwoSlopeNorm
+SHAPE = (24, 64, 64)
+DENSITY_THRESHOLD = 0.1
+COLUMNS = ('Synthetic Model', 'Migration', 'Inversion')
+ROWS = ('XY', 'XZ', 'YZ')
+
+def _name(value: str) -> str:
+    value = str(value).removesuffix('.npz')
+    if value.startswith('sample_'):
+        return value
+    if value.isdigit():
+        return f'sample_{int(value):06d}'
+    return value
+
+
+def _load(path: Path, migration_source: str):
+    with np.load(path) as archive:
+        required = ('density', 'prediction')
+        for key in required:
+            if key not in archive:
+                raise KeyError(f'{path}: missing {key}; available keys: {archive.files}')
+        density = np.asarray(archive['density'], dtype=np.float32).squeeze()
+        inversion = np.asarray(archive['prediction'], dtype=np.float32).squeeze()
+        if migration_source == 'normalized':
+            if 'migration_input' in archive:
+                migration = np.asarray(archive['migration_input'], dtype=np.float32).squeeze()
+            elif 'migration' in archive:
+                raw = np.asarray(archive['migration'], dtype=np.float32).squeeze()
+                migration = raw / max(float(np.max(np.abs(raw))), 1e-8)
+            else:
+                raise KeyError(f'{path}: no migration_input or migration field')
+        else:
+            if 'migration' not in archive:
+                raise KeyError(f'{path}: no raw migration field')
+            migration = np.asarray(archive['migration'], dtype=np.float32).squeeze()
+    for key, arr in [('density', density), ('migration', migration), ('prediction', inversion)]:
+        if arr.shape != SHAPE or not np.isfinite(arr).all():
+            raise ValueError(f'{path}: {key} has invalid shape/values {arr.shape}')
+    return density, migration, inversion
+
+
+def _components(density, threshold, connectivity, min_body_voxels):
+    mask = np.abs(density) >= threshold
+    struct = ndimage.generate_binary_structure(3, connectivity)
+    labeled, n = ndimage.label(mask, structure=struct)
+    bodies = []
+    for identifier in range(1, n+1):
+        indices = np.argwhere(labeled == identifier)
+        if len(indices) < min_body_voxels:
+            continue
+        centroid = np.mean(indices, axis=0)
+        center = tuple(int(np.clip(np.round(v), 0, d-1)) for v,d in zip(centroid, SHAPE))
+        bodies.append((len(indices), center, identifier))
+    bodies.sort(key=lambda item: (-item[0], item[1]))
+    return bodies
+
+
+def _slices(volume, center):
+    z, y, x = center
+    return [volume[z, :, :], volume[:, y, :], volume[:, :, x]]
+
+
+def _figure(truth, mig, pred, center, title, output, migration_source, dpi):
+    volumes = [truth, mig, pred]
+    nz, ny, nx = truth.shape
+    density_max = max(float(np.max(np.abs(truth))), float(np.max(np.abs(pred))), 0.1)
+    density_norm = TwoSlopeNorm(vmin=-density_max, vcenter=0, vmax=density_max)
+    migmax = max(float(np.max(np.abs(mig))), 1e-6)
+    mig_norm = TwoSlopeNorm(vmin=-migmax, vcenter=0, vmax=migmax)
+    fig, axes = plt.subplots(3, 3, figsize=(14.4, 11.2), constrained_layout=True,
+                             gridspec_kw={'height_ratios':[1.0, 0.78, 0.78]})
+    for col, volume in enumerate(volumes):
+        for row, section in enumerate(_slices(volume, center)):
+            ax = axes[row, col]
+            # z=0 at top for vertical slices, x/y show geographic increasing coordinates.
+            if row == 0:
+                extent = [0, nx*CELL_M, 0, ny*CELL_M]
+                origin = 'lower'
+                xlabel, ylabel = 'East (m)', 'North (m)'
+            elif row == 1:
+                extent = [0, nx*CELL_M, nz*CELL_M, 0]
+                origin = 'upper'
+                xlabel, ylabel = 'East (m)', 'Depth (m)'
+            else:
+                extent = [0, ny*CELL_M, nz*CELL_M, 0]
+                origin = 'upper'
+                xlabel, ylabel = 'North (m)', 'Depth (m)'
+            im = ax.imshow(section, cmap='RdBu_r',
+                           norm=mig_norm if col == 1 else density_norm,
+                           origin=origin, extent=extent, interpolation='nearest',
+                           aspect='auto')
+            ax.set_xlabel(xlabel, fontsize=9)
+            ax.set_ylabel(ylabel, fontsize=9)
+            ax.tick_params(labelsize=8)
+            if col == 0:
+                z,y,x=center
+                ax.text(0.02, 0.97, [f'XY · depth {(z+0.5)*CELL_M:.0f} m',
+                                      f'XZ · north {(y+0.5)*CELL_M:.0f} m',
+                                      f'YZ · east {(x+0.5)*CELL_M:.0f} m'][row],
+                        transform=ax.transAxes, va='top', fontsize=9,
+                        bbox=dict(facecolor='white',alpha=.82,edgecolor='none',pad=3))
+            if row == 0: ax.set_title(COLUMNS[col], fontsize=14, weight='bold', pad=12)
+    bar_truth = fig.colorbar(axes[0, 0].images[0], ax=[axes[r,c] for c in (0,2) for r in range(3)],
+                             orientation='horizontal', shrink=.72, pad=.08, aspect=38)
+    bar_truth.set_label('Density contrast (g/cm³) · shared true/pred scale', fontsize=10)
+    bar_mig = fig.colorbar(axes[0, 1].images[0], ax=[axes[r,1] for r in range(3)],
+                           orientation='horizontal', shrink=.83, pad=.08, aspect=18)
+    bar_mig.set_label('Normalized migration (unitless)' if migration_source == 'normalized'
+                      else 'Migration amplitude (not calibrated density)', fontsize=10)
+    fig.suptitle(title, fontsize=16, weight='bold')
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output, dpi=dpi, bbox_inches='tight')
+    plt.close(fig)
+    return output
+
+
+def export_one(path, prediction_root, split, threshold, connectivity,
+               min_body_voxels, migration_source, dpi, overwrite, per_body):
+    truth, migration, prediction = _load(path, migration_source)
+    bodies = _components(truth, threshold, connectivity, min_body_voxels)
+    if not bodies:
+        raise ValueError(f'{path}: no true bodies at threshold {threshold}')
+    relative = path.relative_to(prediction_root)
+    # predictions/test/<sample>.npz -> figures/test/<sample>_cross_sections.png
+    parts = relative.parts
+    if len(parts) < 3 or parts[-3:-1] != ('predictions', split):
+        raise ValueError(f'Unexpected prediction layout: {path}')
+    experiment_parts = parts[:-3]
+    outdir = prediction_root.joinpath(*experiment_parts, 'figures', split)
+    center = tuple(int(np.round(v)) for v in np.mean(np.argwhere(np.abs(truth)>=threshold),axis=0))
+    outputs = []
+    overview = outdir / f'{path.stem}_cross_sections.png'
+    if overwrite or not overview.exists():
+        outputs.append(_figure(truth,migration,prediction,center,
+                    f'{path.stem} | Full-model cross-sections', overview,migration_source,dpi))
+    if per_body:
+        for number, (count, body_center, _) in enumerate(bodies, 1):
+            output = outdir / f'{path.stem}_body_{number:02d}_cross_sections.png'
+            if overwrite or not output.exists():
+                outputs.append(_figure(truth,migration,prediction,body_center,
+                    f'{path.stem} | Body {number} ({count} voxels) — matched cross-sections',
+                    output,migration_source,dpi))
+    return outputs, len(bodies)
+
