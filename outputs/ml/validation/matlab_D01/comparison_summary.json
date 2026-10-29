@@ -1,0 +1,30 @@
+{
+  "gz_forward": {
+    "samples": 100,
+    "passed": 100,
+    "mean_rmse": 6.1274959042913e-18,
+    "worst_max_abs": 4.440892098500626e-16,
+    "worst_relative_l2": 3.222997008291113e-16
+  },
+  "gz_migration": {
+    "samples": 100,
+    "passed": 100,
+    "mean_rmse": 2.883631653711403e-15,
+    "worst_max_abs": 9.947598300641403e-14,
+    "worst_relative_l2": 4.672064780325391e-16
+  },
+  "gzz_forward": {
+    "samples": 100,
+    "passed": 100,
+    "mean_rmse": 1.575313913771694e-15,
+    "worst_max_abs": 1.4210854715202004e-13,
+    "worst_relative_l2": 5.900846065214148e-16
+  },
+  "gzz_migration": {
+    "samples": 100,
+    "passed": 100,
+    "mean_rmse": 4.519082755639178e-13,
+    "worst_max_abs": 3.2741809263825417e-11,
+    "worst_relative_l2": 8.002901790106124e-16
+  }
+}
