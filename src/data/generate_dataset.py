@@ -28,7 +28,7 @@ SHAPE = (24, 64, 64)
 NZ, NY, NX = SHAPE
 CELL_M = 10.0
 Z, Y, X = np.ogrid[:NZ, :NY, :NX]
-GEOMETRIES = ("compact", "multiple", "multiple_depths", "dipping", "salt_dome", "basement")
+GEOMETRIES = ("compact", "multiple", "multiple_depths", "dipping", "salt_dome")
 SPLITS = ("train", "validation", "test")
 
 
@@ -60,6 +60,11 @@ def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
 
     `multiple` uses a configurable number of separated prisms. The remaining
     modes retain the shapes of the existing research generators.
+
+    Salt domes always have negative density contrast, regardless of
+    `density_sign`. Other geometries follow the selected sign mode:
+    positive, negative, or signed (random sign per sample).
+    Basement geometry is not supported.
     """
     rho = np.zeros(SHAPE, dtype=np.float32)
     if geometry == "compact":
@@ -111,20 +116,21 @@ def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
         mask = ((r2 <= stem_r ** 2) & (Z >= stem_top) & (Z < 23)) | \
                ((r2 <= cap_r ** 2) & (Z >= cap_top) & (Z <= 16))
         rho = (mask * float(rng.uniform(.2, .8))).astype(np.float32)
-    elif geometry == "basement":
-        mean = float(rng.uniform(12, 19))
-        ax, ay = float(rng.uniform(1., 3.)), float(rng.uniform(1., 3.))
-        px, py = rng.uniform(0, 2 * np.pi, 2)
-        top = mean + ax * np.sin(2 * np.pi * X / NX + px) + \
-              ay * np.cos(2 * np.pi * Y / NY + py)
-        rho = ((Z >= top) * float(rng.uniform(.2, .7))).astype(np.float32)
     else:
         raise ValueError(f"Unknown geometry: {geometry}")
 
-    # A single sign per sample keeps geological bodies interpretable. Both signs
-    # are used across samples when density_sign='signed'.
-    if density_sign == "negative" or (density_sign == "signed" and rng.integers(2) == 0):
-        rho = -rho
+    # Salt domes always have negative density contrast, even when the
+    # dataset was requested with --density positive.
+    # All other geometries follow --density; signed selects one sign per sample.
+    if geometry == "salt_dome":
+        rho = -np.abs(rho)
+    elif density_sign == "negative":
+        rho = -np.abs(rho)
+    elif density_sign == "signed":
+        if rng.integers(2) == 0:
+            rho = -rho
+    elif density_sign != "positive":
+        raise ValueError(f"Unsupported density sign mode: {density_sign}")
     if rho.shape != SHAPE or not np.isfinite(rho).all() or not np.any(rho):
         raise ValueError(f"Invalid generated density: {geometry}")
     return rho
@@ -169,21 +175,23 @@ def physics_for_sample(job):
         density = np.asarray(arr["density"], dtype=np.float32)
         model_id = int(arr["model_id"])
         geometry = str(arr["geometry"].item())
-    if component == "gz":
-        from src.physics.gravity_forward import calculate_gravity
-        from src.physics.gravity_migration import calculate_migration
-        unit = "mGal"
-    else:
-        from src.physics.gravity_gradient_forward import calculate_gzz as calculate_gravity
-        from src.physics.gravity_gradient_migration import calculate_gzz_migration as calculate_migration
-        unit = "E"
-    clean = np.asarray(calculate_gravity(density), dtype=np.float64)
+    from src.physics.gravity_forward import calculate_gravity
+    from src.physics.gravity_migration import calculate_migration
+
+    unit = "mGal" if component == "gz" else "E"
+    clean = np.asarray(
+        calculate_gravity(density, component=component),
+        dtype=np.float64
+    )
     std = float(noise) / 100 * float(np.max(np.abs(clean)))
     # Keep the same standard normal noise field for paired variants.
     geom_code = GEOMETRIES.index(geometry)
     rng = np.random.default_rng(np.random.SeedSequence([seed, model_id, geom_code, 991]))
     measured = clean + std * rng.standard_normal(clean.shape)
-    migration = np.asarray(calculate_migration(measured, restrict=False), dtype=np.float64)
+    migration = np.asarray(
+         calculate_migration(measured, component=component, restrict=False),
+         dtype=np.float64
+    )
     scale = max(float(np.max(np.abs(migration))), 1e-8)
     if not np.isfinite(migration).all():
         raise ValueError(f"Nonfinite migration: {path}")
@@ -332,7 +340,8 @@ def main():
     p.add_argument("--min-bodies", type=int, default=1)
     p.add_argument("--max-bodies", type=int, default=3)
     p.add_argument("--gap-cells", type=int, default=2)
-    p.add_argument("--density", choices=("positive", "negative", "signed"), default="positive")
+    p.add_argument("--density", choices=("positive", "negative", "signed"), default="positive",
+                   help="Sign of non-salt geometries; salt domes are always negative")
     p.add_argument("--component", choices=("gz", "gzz"), default="gz")
     p.add_argument("--noise", nargs="+", type=float, default=[0.])
     p.add_argument("--paired-noise", action="store_true")

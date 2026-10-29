@@ -32,7 +32,10 @@ DEPTH_WEIGHT = 0.02
 THRESHOLD = DENSITY_THRESHOLD
 TEMP = OCCUPANCY_TEMPERATURE
 
-e03_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT})
+e03_combined_loss = make_loss(
+    weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT},
+    subtract_tversky_baseline=True,
+)
 e05_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT})
 signed_e06_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT}, signed=True)
 

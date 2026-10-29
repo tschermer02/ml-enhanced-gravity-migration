@@ -5,8 +5,7 @@
     "multiple",
     "multiple_depths",
     "dipping",
-    "salt_dome",
-    "basement"
+    "salt_dome"
   ],
   "train": 2400,
   "validation": 240,

@@ -1,0 +1,8 @@
+{
+  "run_name": "E02A",
+  "dataset_name": "D01",
+  "model_path": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/training/E02A/checkpoints/best_unet3d.keras",
+  "data_root": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/training/D01/data",
+  "split": "test",
+  "sample_count": 100
+}
