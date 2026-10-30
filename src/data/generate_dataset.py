@@ -137,34 +137,35 @@ def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
 
 
 def allocate(count, geometries, noise_levels, rng, paired_noise=False):
-    """Balanced assignments; differ by at most one among conditions.
+    """Exactly balance each geometry; noise levels distributed as evenly as possible.
 
-    With paired noise, assign complete noise groups whenever possible.
-    Incomplete groups still obey the requested total number of saved samples.
+    With paired_noise, each complete noise group is one unique geology model.
+    Without paired_noise, each saved sample has its own underlying model.
     """
-    conditions = [(g, float(n)) for g in geometries for n in noise_levels]
-    rng.shuffle(conditions)
-    if paired_noise:
-        # Balance distinct underlying model groups across geometries.
-        full, extra = divmod(count, len(noise_levels))
-        gs = [geometries[i % len(geometries)] for i in range(full)]
-        rng.shuffle(gs)
-        rows = []
-        for model_id, geom in enumerate(gs):
-            for n in noise_levels:
-                rows.append((geom, float(n), model_id))
-        # Partial last group: deterministic spread, with no overproduction.
-        if extra:
-            geom = geometries[full % len(geometries)]
-            levels = list(noise_levels)
-            rng.shuffle(levels)
-            rows += [(geom, float(n), full) for n in levels[:extra]]
-    else:
-        combos = [conditions[i % len(conditions)] for i in range(count)]
-        rng.shuffle(combos)
-        rows = [(g, n, i) for i, (g, n) in enumerate(combos)]
+    if count % len(geometries):
+        raise ValueError("Split count must be divisible by number of geometries")
+    per_geometry = count // len(geometries)
+    rows = []
+    for gi, geometry in enumerate(geometries):
+        if paired_noise:
+            full, remainder = divmod(per_geometry, len(noise_levels))
+            for model_id in range(full):
+                for level in noise_levels:
+                    rows.append((geometry, float(level), model_id))
+            for j in range(remainder):
+                rows.append((geometry, float(noise_levels[(gi + j) % len(noise_levels)]), full))
+        else:
+            for model_id in range(per_geometry):
+                rows.append((geometry, float(noise_levels[(gi + model_id) % len(noise_levels)]), model_id))
     rng.shuffle(rows)
     return rows
+
+
+def sample_file(root, split, row, noise_levels):
+    folder = root / split / row["geometry"]
+    if len(noise_levels) > 1:
+        folder /= f'noise_{int(row["noise_percent"]):02d}'
+    return folder / f'{row["sample_id"]}.npz'
 
 
 def physics_for_sample(job):
@@ -228,7 +229,8 @@ def generate_dataset(args):
                   density=args.density, min_bodies=args.min_bodies,
                   max_bodies=args.max_bodies, gap_cells=args.gap_cells, seed=args.seed,
                   shape=list(SHAPE), cell_size_m=CELL_M,
-                  noise_definition="Gaussian std as percent of max abs clean response")
+                  noise_definition="Gaussian std as percent of max abs clean response",
+                  layout="split/geometry[/noise_NN]/sample")
     config_path = root / "config.json"
     if config_path.exists():
         previous = json.loads(config_path.read_text())
@@ -257,7 +259,7 @@ def generate_dataset(args):
             total = len(split_rows)
 
             for i, row in enumerate(split_rows, 1):
-                path = root / split / f'{row["sample_id"]}.npz'
+                path = sample_file(root, split, row, noise)
 
                 if not path.exists() or args.overwrite:
                     group_key = (row["geometry"], row["model_id"])
@@ -303,7 +305,7 @@ def generate_dataset(args):
         jobs = []
         for split_index, split in enumerate(SPLITS):
             for row in (r for r in rows if r["split"] == split):
-                path = root / split / f'{row["sample_id"]}.npz'
+                path = sample_file(root, split, row, noise)
                 if not path.exists():
                     raise FileNotFoundError(path)
                 if not args.overwrite:

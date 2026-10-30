@@ -83,7 +83,7 @@ def main():
     base = args.predictions_root
     if not base.is_absolute():
         base = ROOT / base
-    folders = sorted(base.glob(f'**/predictions/{args.split}')) if args.all else [base / args.name / 'predictions' / args.split]
+    folders = sorted(base.glob(f'**/predictions/{args.split}')) if args.all else sorted((base / args.name).glob(f'**/predictions/{args.split}'))
     if not any(p.is_dir() for p in folders):
         raise FileNotFoundError(f'No prediction folders for {args.split} under {base}')
     total = 0

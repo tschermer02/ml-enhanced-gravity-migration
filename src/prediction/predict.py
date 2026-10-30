@@ -28,13 +28,10 @@ def sample_paths(data_root: Path, split: str, samples=None, limit=None):
     if split not in SPLITS:
         raise ValueError(f"Invalid split: {split}")
     folder = data_root / split
+    paths = sorted(folder.rglob("*.npz"))
     if samples:
-        paths = [folder / (str(s) if str(s).endswith(".npz") else f"{s}.npz") for s in samples]
-        missing = [p for p in paths if not p.is_file()]
-        if missing:
-            raise FileNotFoundError(f"Missing sample: {missing[0]}")
-    else:
-        paths = sorted(folder.glob("*.npz"))
+        wanted = {str(v).removesuffix(".npz") for v in samples}
+        paths = [p for p in paths if p.stem in wanted or str(p.relative_to(folder)).removesuffix(".npz") in wanted]
     if limit is not None:
         if limit < 1:
             raise ValueError("limit must be >= 1")
@@ -54,7 +51,7 @@ def load_prediction_input(path: Path):
         for name in ("density", "gravity", "gravity_clean", "migration"):
             if name in archive:
                 arrays[name] = np.asarray(archive[name], dtype=np.float32)
-        for name in ("migration_scale", "noise_percent", "geometry", "observed_component"):
+        for name in ("migration_scale", "noise_percent", "geometry", "observed_component", "observation_component", "observation_unit", "model_id"):
             if name in archive:
                 arrays[name] = archive[name].copy()
     if inputs.shape != VOLUME_SHAPE or not np.isfinite(inputs).all():
@@ -83,12 +80,19 @@ def run_predictions(model, data_root, output_root, split="test", samples=None,
     data_root = Path(data_root)
     output_root = Path(output_root)
     paths = sample_paths(data_root, split, samples=samples, limit=limit)
-    destination = output_root / "predictions" / split
-    target_paths = [destination / path.name for path in paths]
+    source_split = data_root / split
+    target_paths = []
+    for path in paths:
+        parts = path.relative_to(source_split).parts
+        # New layout: experiment/geometry[/noise_NN]/predictions/split/sample.
+        # Keep legacy flat-data layout compatible.
+        target = output_root.joinpath(*parts[:-1], "predictions", split, path.name)
+        target_paths.append(target)
     existing = [p for p in target_paths if p.exists()]
     if existing and not overwrite:
         raise FileExistsError(f"Refusing to overwrite {existing[0]} (use --overwrite)")
-    destination.mkdir(parents=True, exist_ok=True)
+    for target in target_paths:
+        target.parent.mkdir(parents=True, exist_ok=True)
     records = []
     for index, (path, target) in enumerate(zip(paths, target_paths), 1):
         input_volume, original = load_prediction_input(path)

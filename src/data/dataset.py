@@ -27,7 +27,7 @@ def sample_paths(data_root: str | Path, split: str,
     if limit is not None and limit < 1:
         raise ValueError("limit must be >= 1")
     root = Path(data_root)
-    paths = sorted((root / split).glob("*.npz"))
+    paths = sorted((root / split).rglob("*.npz"))
     if limit is not None:
         paths = paths[:limit]
     if not paths:

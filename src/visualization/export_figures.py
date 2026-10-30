@@ -28,10 +28,11 @@ def sample_name(text):
 def prediction_folders(base, name, split, all_runs):
     if all_runs:
         return sorted(base.glob(f"**/predictions/{split}"))
-    folder = base / name / "predictions" / split
-    if not folder.is_dir():
-        raise FileNotFoundError(folder)
-    return [folder]
+    root = base / name
+    folders = sorted(root.glob(f"**/predictions/{split}"))
+    if not folders:
+        raise FileNotFoundError(f"No prediction folders beneath {root}")
+    return folders
 
 
 def selected_files(folder, samples, limit):
@@ -49,7 +50,8 @@ def export_dataset(args):
         with np.load(path) as data:
             truth = np.asarray(data["density"], dtype=np.float32)
             migration = np.asarray(data["migration"], dtype=np.float32)
-        destination = ROOT / "outputs" / "ml" / "predict" / args.name / "figures" / args.split / f"{path.stem}_dataset.png"
+        relative = path.parent.relative_to(folder)
+        destination = ROOT / "outputs" / "ml" / "predict" / args.name / relative / "figures" / args.split / f"{path.stem}_dataset.png"
         if destination.exists() and not args.overwrite:
             continue
         plot_volume_comparison(truth, migration, destination,
