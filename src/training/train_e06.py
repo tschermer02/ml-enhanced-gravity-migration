@@ -183,9 +183,9 @@ def main() -> None:
 
     tf.keras.utils.set_random_seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
-    train_data = signed_dataset(data_root, "train", batch_size=args.batch_size,
+    train_data = make_dataset(data_root, "train", batch_size=args.batch_size,
                               limit=args.limit, seed=RANDOM_SEED)
-    val_data = signed_dataset(data_root, "validation", batch_size=args.batch_size,
+    val_data = make_dataset(data_root, "validation", batch_size=args.batch_size,
                             limit=args.limit, seed=RANDOM_SEED)
     # Reuse E05 feature extractor, replace sigmoid head with signed tanh output.
     original = build_unet3d()
