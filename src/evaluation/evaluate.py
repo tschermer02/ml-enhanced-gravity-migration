@@ -19,7 +19,7 @@ def evaluate(data_root, model_path, output_root, split="test", *, threshold=0.1,
     # Lazy import lets pure NumPy metrics be used without importing TensorFlow.
     import tensorflow as tf
     data_root, model_path, output_root = map(Path, (data_root, model_path, output_root))
-    files = sorted((data_root / split).glob("*.npz"))
+    files = sorted((data_root / split).rglob("*.npz"))
     if limit is not None:
         if limit < 1:
             raise ValueError("limit must be positive")
@@ -32,10 +32,8 @@ def evaluate(data_root, model_path, output_root, split="test", *, threshold=0.1,
     if marker.exists() and not overwrite:
         raise FileExistsError(f"Evaluation exists at {marker}; use --overwrite")
 
-    model = tf.keras.models.load_model(model_path, compile=False)
+    model = None  # Only load the checkpoint if a prediction is missing.
     rows = []
-    prediction_folder = output_root / "predictions" / split
-    prediction_folder.mkdir(parents=True, exist_ok=True)
     for i, path in enumerate(files, 1):
         with np.load(path, allow_pickle=False) as f:
             x = np.asarray(f["migration_input"], dtype=np.float32)
@@ -45,14 +43,23 @@ def evaluate(data_root, model_path, output_root, split="test", *, threshold=0.1,
             migration = np.asarray(f["migration"], dtype=np.float32) if "migration" in f else None
         if x.shape != truth.shape or x.ndim != 3:
             raise ValueError(f"Unexpected sample shape in {path}")
-        pred = np.asarray(model(x[None, ..., None], training=False).numpy()).squeeze()
+        relative = path.relative_to(data_root / split)
+        pred_path = output_root.joinpath(*relative.parts[:-1], "predictions", split, path.name)
+        if pred_path.exists():
+            with np.load(pred_path, allow_pickle=False) as saved:
+                pred = np.asarray(saved["prediction"], dtype=np.float32).squeeze()
+        else:
+            if model is None:
+                model = tf.keras.models.load_model(model_path, compile=False)
+            pred = np.asarray(model(x[None, ..., None], training=False).numpy()).squeeze()
+            pred_path.parent.mkdir(parents=True, exist_ok=True)
+            with np.load(path, allow_pickle=False) as sample:
+                payload = {key: sample[key] for key in sample.files}
+            np.savez_compressed(pred_path, **payload, prediction=pred.astype(np.float32))
         metrics = calculate_metrics(truth, pred, threshold, cell_size_m)
         rows.append({"sample_id": path.stem, "split": split, "geometry": geometry,
                      "noise_percent": noise, **metrics})
-        payload = {"density": truth, "prediction": pred.astype(np.float32), "migration_input": x}
-        if migration is not None:
-            payload["migration"] = migration
-        np.savez_compressed(prediction_folder / path.name, **payload)
+        # Preserve existing prediction files (including gravity metadata).
         if i % 25 == 0 or i == len(files):
             print(f"{split}: {i}/{len(files)}", flush=True)
 
@@ -66,6 +73,18 @@ def evaluate(data_root, model_path, output_root, split="test", *, threshold=0.1,
                "model_path": str(model_path), "data_root": str(data_root),
                "threshold_gcm3": threshold, "cell_size_m": cell_size_m}
     marker.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    for geom in sorted({row["geometry"] for row in rows}):
+        group_rows = [row for row in rows if row["geometry"] == geom]
+        geometry_dir = output_root / geom
+        geometry_dir.mkdir(parents=True, exist_ok=True)
+        with (geometry_dir / f"{split}_metrics.csv").open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(group_rows)
+        (geometry_dir / f"{split}_summary.json").write_text(
+            json.dumps({"geometry": geom, "overall": summarize(group_rows),
+                        "by_geometry_and_noise": grouped_summary(group_rows)}, indent=2),
+            encoding="utf-8")
     print(f"Finished evaluating {split} dataset: {output_root}", flush=True)
     return summary
 
