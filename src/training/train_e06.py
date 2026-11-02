@@ -30,11 +30,41 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from src.models.unet3d import build_unet3d
-from src.losses.e06_signed_losses import (
-    signed_dataset, signed_e06_loss, signed_balanced_density_mse,
-    signed_tversky, signed_vertical_profile,
-    TVERSKY_WEIGHT, DEPTH_WEIGHT, THRESHOLD, TEMP,
+from src.data.dataset import make_dataset, sample_paths
+from src.losses.losses import (
+    balanced_density_mse,
+    soft_tversky_loss,
+    vertical_profile_loss,
+    make_loss,
 )
+
+TVERSKY_WEIGHT = 0.1
+DEPTH_WEIGHT = 0.02
+THRESHOLD = 0.1
+TEMP = 0.025
+
+# E06A: Balanced MSE + signed Tversky + vertical profile
+signed_e06_loss = make_loss(
+    weights={
+        "balanced_mse": 1.0,
+        "tversky": TVERSKY_WEIGHT,
+        "depth": DEPTH_WEIGHT,
+    },
+    signed=True,
+)
+
+def signed_balanced_density_mse(y_true, y_pred):
+    return balanced_density_mse(y_true, y_pred, signed=True)
+
+def signed_tversky(y_true, y_pred):
+    return soft_tversky_loss(
+        y_true, y_pred,
+        signed=True,
+        subtract_baseline=True,
+    )
+
+def signed_vertical_profile(y_true, y_pred):
+    return vertical_profile_loss(y_true, y_pred, signed=True)
 
 EXPERIMENT = "E06_signed"
 LEARNING_RATE = 1e-3
