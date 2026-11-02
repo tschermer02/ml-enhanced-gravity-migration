@@ -72,7 +72,7 @@ BATCH_SIZE = 2
 MAX_EPOCHS = 100
 EARLY_STOPPING_PATIENCE = 15
 REDUCE_LR_PATIENCE = 5
-RANDOM_SEED = 42
+RANDOM_SEED = 123
 DATA_ROOT = ROOT / "outputs" / "ml" / "training" / "E06_signed" / "data"
 OUTPUT_ROOT = ROOT / "outputs" / "ml" / "training" / EXPERIMENT
 
@@ -183,10 +183,19 @@ def main() -> None:
 
     tf.keras.utils.set_random_seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
-    train_data = make_dataset(data_root, "train", batch_size=args.batch_size,
-                              limit=args.limit, seed=RANDOM_SEED)
-    val_data = make_dataset(data_root, "validation", batch_size=args.batch_size,
-                            limit=args.limit, seed=RANDOM_SEED)
+    train_data = make_dataset(
+        data_root, "train",
+        batch_size=args.batch_size,
+        limit=args.limit,
+        seed=RANDOM_SEED,
+    )
+
+    val_data = make_dataset(
+        data_root, "validation",
+        batch_size=args.batch_size,
+        limit=args.limit,
+        seed=RANDOM_SEED,
+    )
     # Reuse E05 feature extractor, replace sigmoid head with signed tanh output.
     original = build_unet3d()
     signed_head = tf.keras.layers.Conv3D(1, 1, activation="tanh", name="signed_density_prediction")(
@@ -194,7 +203,9 @@ def main() -> None:
     )
     model = tf.keras.Model(original.input, signed_head, name="e06_signed_unet3d")
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
+        optimizer=tf.keras.optimizers.Adam(
+            learning_rate=LEARNING_RATE,
+        ),
         loss=signed_e06_loss,
         metrics=[signed_balanced_density_mse, signed_tversky, signed_vertical_profile],
         jit_compile=False,
