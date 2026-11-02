@@ -67,12 +67,12 @@ def signed_vertical_profile(y_true, y_pred):
     return vertical_profile_loss(y_true, y_pred, signed=True)
 
 EXPERIMENT = "E06_signed"
-LEARNING_RATE = 3e-4
+LEARNING_RATE = 1e-3
 BATCH_SIZE = 2
 MAX_EPOCHS = 100
 EARLY_STOPPING_PATIENCE = 15
 REDUCE_LR_PATIENCE = 5
-RANDOM_SEED = 42
+RANDOM_SEED = 123
 DATA_ROOT = ROOT / "outputs" / "ml" / "training" / "E06_signed" / "data"
 OUTPUT_ROOT = ROOT / "outputs" / "ml" / "training" / EXPERIMENT
 
@@ -205,7 +205,6 @@ def main() -> None:
     model.compile(
         optimizer=tf.keras.optimizers.Adam(
             learning_rate=LEARNING_RATE,
-            global_clipnorm=1.0,
         ),
         loss=signed_e06_loss,
         metrics=[signed_balanced_density_mse, signed_tversky, signed_vertical_profile],
