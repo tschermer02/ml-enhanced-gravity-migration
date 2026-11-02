@@ -9,39 +9,6 @@ Usage:
   python scripts/train_unet_e06_signed.py --epochs 100 --batch-size 2
 """
 from __future__ import annotations
-# BEGIN UNIFIED TRAINING IMPORTS
-
-from src.data.dataset import make_dataset, sample_paths
-from src.models.unet3d import build_unet3d
-from src.losses.losses import (
-    ordinary_mse, balanced_density_mse, balanced_huber_loss,
-    soft_tversky_loss, vertical_profile_loss, make_loss,
-)
-
-TVERSKY_WEIGHT = 0.1
-TVERSKY_ALPHA = 0.7
-TVERSKY_BETA = 0.3
-DENSITY_THRESHOLD = 0.1
-OCCUPANCY_TEMPERATURE = 0.025
-DEPTH_WEIGHT = 0.02
-THRESHOLD = DENSITY_THRESHOLD
-TEMP = OCCUPANCY_TEMPERATURE
-
-e03_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT})
-e05_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT})
-signed_e06_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT}, signed=True)
-
-def signed_balanced_density_mse(y_true, y_pred):
-    return balanced_density_mse(y_true, y_pred, signed=True)
-
-def signed_tversky(y_true, y_pred):
-    return soft_tversky_loss(y_true, y_pred, signed=True, subtract_baseline=True)
-
-def signed_vertical_profile(y_true, y_pred):
-    return vertical_profile_loss(y_true, y_pred, signed=True)
-
-# END UNIFIED TRAINING IMPORTS
-
 
 import argparse
 import json
@@ -50,16 +17,24 @@ import time
 from pathlib import Path
 
 import matplotlib
+
+from src.prediction.predict import sample_paths
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from src.models.unet3d import build_unet3d
+from src.losses.e06_signed_losses import (
+    signed_dataset, signed_e06_loss, signed_balanced_density_mse,
+    signed_tversky, signed_vertical_profile,
+    TVERSKY_WEIGHT, DEPTH_WEIGHT, THRESHOLD, TEMP,
+)
 
 EXPERIMENT = "E06_signed"
 LEARNING_RATE = 1e-3
@@ -171,16 +146,16 @@ def main() -> None:
     for directory in (checkpoints, logs, figures):
         if directory.exists() and any(directory.iterdir()):
             raise FileExistsError(f"Refusing to overwrite E06 artifacts in {directory}")
-    train_paths = sorted((data_root / "train").glob("*.npz"))[:args.limit]
-    val_paths = sorted((data_root / "validation").glob("*.npz"))[:args.limit]
+    train_paths = sample_paths(data_root, "train", args.limit)
+    val_paths = sample_paths(data_root, "validation", args.limit)
     for folder in (checkpoints, logs, figures):
         folder.mkdir(parents=True, exist_ok=True)
 
     tf.keras.utils.set_random_seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
-    train_data = make_dataset(data_root, "train", batch_size=args.batch_size,
+    train_data = signed_dataset(data_root, "train", batch_size=args.batch_size,
                               limit=args.limit, seed=RANDOM_SEED)
-    val_data = make_dataset(data_root, "validation", batch_size=args.batch_size,
+    val_data = signed_dataset(data_root, "validation", batch_size=args.batch_size,
                             limit=args.limit, seed=RANDOM_SEED)
     # Reuse E05 feature extractor, replace sigmoid head with signed tanh output.
     original = build_unet3d()
