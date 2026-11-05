@@ -7,8 +7,8 @@ Run from the repository root:
 
 Uses the project's existing SciPy gravity forward operator, not TensorFlow.
 Reads prediction NPZ files under outputs/ml/predict/<name>/**/predictions/<split>/.
-Creates one three-panel gravity comparison per geometry, pooled residual plots,
-and per-sample/per-geometry CSVs. Gz units: mGal; Gzz units: Eotvos (E).
+Creates one three-panel gravity comparison per geometry, a combined
+comparison figure for all geometries, pooled residual plots, and CSVs. Gz units: mGal; Gzz units: Eotvos (E).
 """
 from __future__ import annotations
 
@@ -53,6 +53,100 @@ def save_comparison(observed, modeled, residual, geometry, sample_id,
         ax.set(title=title, xlabel="Easting (m)", ylabel="Northing (m)")
         fig.colorbar(im, ax=ax, label=f"{component.upper()} ({unit})", shrink=0.8)
     fig.suptitle(f"{geometry}: {sample_id} | {component.upper()} RMSE = {rmse:.5g} {unit}")
+    fig.savefig(destination, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+
+
+
+def save_combined_comparisons(representatives: dict, component: str,
+                              unit: str, destination: Path, dpi: int) -> None:
+    """Plot one representative test sample per geology in a 4-by-3 layout.
+
+    Columns: observed, forward modeled from ML density, observed-minus-modeled.
+    Observed and modeled panels use one shared color scale across all rows;
+    residual panels use a separate shared scale across all rows. This makes
+    between-category comparisons meaningful.
+    """
+    if not representatives:
+        return
+
+    order = ["compact", "single", "single_compact", "single_compact_body",
+             "multiple", "multiple_depths", "multiple_compact_bodies",
+             "dipping", "dipping_elongated", "dipping_elongated_body",
+             "salt_dome", "salt", "salt_dome_analogue"]
+    keys = [key for key in order if key in representatives]
+    keys += sorted(key for key in representatives if key not in keys)
+
+    titles = {
+        "compact": "A — Single compact body",
+        "single": "A — Single compact body",
+        "single_compact": "A — Single compact body",
+        "single_compact_body": "A — Single compact body",
+        "multiple": "B — Multiple compact bodies",
+        "multiple_depths": "B — Multiple compact bodies",
+        "multiple_compact_bodies": "B — Multiple compact bodies",
+        "dipping": "C — Dipping elongated body",
+        "dipping_elongated": "C — Dipping elongated body",
+        "dipping_elongated_body": "C — Dipping elongated body",
+        "salt": "D — Salt-dome analogue",
+        "salt_dome": "D — Salt-dome analogue",
+        "salt_dome_analogue": "D — Salt-dome analogue",
+    }
+    field_limit = max(
+        max(float(np.max(np.abs(representatives[key][field])))
+            for key in keys for field in ("observed", "modeled")), 1e-12)
+    residual_limit = max(
+        max(float(np.max(np.abs(representatives[key]["residual"])))
+            for key in keys), 1e-12)
+
+    nrows = len(keys)
+    fig, axes = plt.subplots(
+        nrows, 3, figsize=(13.0, 3.0 * nrows + 0.7),
+        constrained_layout=True, squeeze=False)
+    headings = ("Observed", "Forward-modeled from ML density",
+                "Residual (observed − modeled)")
+    for j, title in enumerate(headings):
+        axes[0, j].set_title(title, fontsize=11, pad=10)
+
+    field_image = None
+    residual_image = None
+    extent = [OBS_X[0], OBS_X[-1], OBS_Y[0], OBS_Y[-1]]
+
+    for i, key in enumerate(keys):
+        sample = representatives[key]
+        residual = sample["residual"]
+        rmse = float(np.sqrt(np.mean(residual ** 2)))
+        for j, field_name in enumerate(("observed", "modeled", "residual")):
+            ax = axes[i, j]
+            limit = field_limit if j < 2 else residual_limit
+            im = ax.imshow(
+                sample[field_name], origin="lower", cmap="RdBu_r",
+                extent=extent,
+                norm=TwoSlopeNorm(vmin=-limit, vcenter=0, vmax=limit),
+                interpolation="nearest", aspect="equal")
+            if j < 2:
+                field_image = im
+            else:
+                residual_image = im
+            ax.set_xlabel("Easting (m)", fontsize=9)
+            if j == 0:
+                ax.set_ylabel(f"{titles.get(key, key.replace('_', ' ').title())}\nNorthing (m)",
+                              fontsize=9)
+            else:
+                ax.set_ylabel("Northing (m)", fontsize=9)
+            ax.tick_params(labelsize=8)
+            if j == 2:
+                ax.text(0.97, 0.96, f"RMSE: {rmse:.3g} {unit}",
+                        transform=ax.transAxes, ha="right", va="top", fontsize=8,
+                        bbox=dict(facecolor="white", edgecolor="0.8", alpha=0.9,
+                                  boxstyle="round,pad=0.25"))
+
+    cb_field = fig.colorbar(field_image, ax=axes[:, :2].ravel().tolist(),
+                            shrink=0.84, pad=0.015)
+    cb_field.set_label(f"{component.upper()} ({unit})")
+    cb_resid = fig.colorbar(residual_image, ax=axes[:, 2].ravel().tolist(),
+                            shrink=0.84, pad=0.015)
+    cb_resid.set_label(f"Residual {component.upper()} ({unit})")
     fig.savefig(destination, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
 
@@ -193,6 +287,7 @@ def main():
     rows = []
     residual_blocks = []
     plotted = set()
+    representatives = {}
     units_seen = set()
 
     for i, path in enumerate(paths, start=1):
@@ -238,7 +333,19 @@ def main():
             save_comparison(observed, modeled, residual, geometry, path.stem,
                             component, unit, output / f"gravity_comparison_{geometry}.png", args.dpi)
             plotted.add(geometry)
+            representatives[geometry] = {
+                "observed": observed.copy(),
+                "modeled": modeled.copy(),
+                "residual": residual.copy(),
+                "sample": path.stem,
+            }
         print(f"{i}/{len(paths)} {geometry} {path.stem}: RMSE={rmse:.5g} {unit}", flush=True)
+
+    component = next(iter(units_seen))
+    unit = "mGal" if component == "gz" else "E"
+    save_combined_comparisons(
+        representatives, component, unit,
+        output / "gravity_comparison_all_geometries.png", args.dpi)
 
     save_csv(output / "gravity_metrics_per_sample.csv", rows,
              ["sample", "geometry", "component", "rmse", "mae", "mean_residual"])
