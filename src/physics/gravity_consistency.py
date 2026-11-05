@@ -3,12 +3,12 @@
 Run from the repository root:
     python -m src.physics.gravity_consistency --name E06B --component gz
     python -m src.physics.gravity_consistency --name E07A --component gzz
-    python -m src.physics.gravity_consistency --name E06B --limit 4
+    python -m src.physics.gravity_consistency --name E06B --component gz --limit 4
 
-Uses the project's existing forward operator, not TensorFlow. Reads prediction
-NPZ files under outputs/ml/predict/<name>/**/predictions/<split>/.
-Creates one three-panel map per geometry, a pooled residual histogram, and
-per-sample/per-geometry CSVs. Gz is in mGal and Gzz is in Eotvos (E).
+Uses the project's existing SciPy gravity forward operator, not TensorFlow.
+Reads prediction NPZ files under outputs/ml/predict/<name>/**/predictions/<split>/.
+Creates one three-panel gravity comparison per geometry, pooled residual plots,
+and per-sample/per-geometry CSVs. Gz units: mGal; Gzz units: Eotvos (E).
 """
 from __future__ import annotations
 
@@ -36,6 +36,7 @@ def save_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
 
 def save_comparison(observed, modeled, residual, geometry, sample_id,
                     component, unit, destination, dpi):
+    """Keep existing full-field three-panel comparison plots."""
     shared = max(float(np.max(np.abs(observed))),
                  float(np.max(np.abs(modeled))), 1e-12)
     res_scale = max(float(np.max(np.abs(residual))), 1e-12)
@@ -56,6 +57,98 @@ def save_comparison(observed, modeled, residual, geometry, sample_id,
     plt.close(fig)
 
 
+def centered_bins(limit: float, bin_count: int) -> np.ndarray:
+    """Symmetric, evenly spaced edges; use an even number of bins."""
+    if bin_count < 2 or bin_count % 2:
+        raise ValueError("Histogram bin count must be positive and even (at least 2)")
+    return np.linspace(-limit, limit, bin_count + 1)
+
+
+def style_histogram_axis(ax, component: str, unit: str) -> None:
+    ax.axvline(0, color="black", linestyle="--", linewidth=1.3,
+               label="Zero residual", zorder=3)
+    label = rf"$G_{{{'z' if component == 'gz' else 'zz'}}}^{{\mathrm{{obs}}}}"
+    label += rf" - G_{{{'z' if component == 'gz' else 'zz'}}}^{{\mathrm{{pred}}}}$ ({unit})"
+    ax.set_xlabel(label)
+    ax.set_ylabel("Observations per bin (%)")
+    ax.grid(axis="y", alpha=0.20, linewidth=0.7)
+    ax.set_axisbelow(True)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+def draw_histogram(ax, residuals: np.ndarray, edges: np.ndarray, weights: np.ndarray):
+    ax.hist(residuals, bins=edges, weights=weights,
+            color="#4477AA", edgecolor="white", linewidth=0.45)
+    ax.set_xlim(edges[0], edges[-1])
+
+
+def save_residual_histograms(pooled: np.ndarray, component: str, unit: str,
+                             destination: Path, dpi: int,
+                             percentile: float = 99.5, bins: int = 60) -> None:
+    """Create zoomed paper figure and full/zoom side-by-side view.
+
+    Percentages always use the *complete* number of observation cells as
+    denominator; observations outside the zoom range are not renormalized.
+    RMSE, MAE, and bias are computed on all residuals, including outliers.
+    """
+    values = np.asarray(pooled, dtype=np.float64).ravel()
+    if not np.isfinite(values).all() or values.size == 0:
+        raise ValueError("Residuals must be nonempty and finite")
+
+    rmse = float(np.sqrt(np.mean(values ** 2)))
+    mae = float(np.mean(np.abs(values)))
+    bias = float(np.mean(values))
+    # Zoom limit based on absolute residuals, preserving a symmetric x-axis.
+    zoom_limit = float(np.percentile(np.abs(values), percentile))
+    full_limit = float(np.max(np.abs(values)))
+    zoom_limit = max(zoom_limit, 1e-12)
+    full_limit = max(full_limit, 1e-12)
+    zoom_edges = centered_bins(zoom_limit, bins)
+    full_edges = centered_bins(full_limit * (1 + 1e-9), bins)
+    weights = np.full(values.shape, 100.0 / values.size)
+    coverage = float(np.mean(np.abs(values) <= zoom_limit) * 100.0)
+
+    # Paper-ready single-panel histogram.
+    fig, ax = plt.subplots(figsize=(7.5, 4.5))
+    draw_histogram(ax, values, zoom_edges, weights)
+    style_histogram_axis(ax, component, unit)
+    ax.legend(loc="upper left", frameon=False)
+    ax.text(0.98, 0.96,
+            f"RMSE = {rmse:.4g} {unit}\nMAE = {mae:.4g} {unit}\n"
+            f"Mean = {bias:.4g} {unit}",
+            transform=ax.transAxes, ha="right", va="top", fontsize=9,
+            bbox=dict(facecolor="white", edgecolor="0.85",
+                      boxstyle="round,pad=0.35", alpha=0.95))
+    ax.text(0.02, -0.21, f"Central {coverage:.2f}% of residuals shown; "
+            f"metrics use all {values.size:,} observations.",
+            transform=ax.transAxes, ha="left", va="top", fontsize=8,
+            color="0.35")
+    fig.subplots_adjust(bottom=0.23)
+    fig.savefig(destination / "gravity_residuals.png", dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+
+    # Additional two-panel histogram: preserves full-range outliers.
+    fig, axes = plt.subplots(1, 2, figsize=(12.6, 4.5), sharey=False)
+    for ax, edges, title in zip(
+        axes, (full_edges, zoom_edges),
+        ("Full residual range", f"Central {coverage:.2f}% (zoom)"),
+    ):
+        draw_histogram(ax, values, edges, weights)
+        style_histogram_axis(ax, component, unit)
+        ax.set_title(title, fontsize=11)
+    axes[0].legend(loc="upper left", frameon=False)
+    axes[1].text(0.97, 0.96,
+                 f"RMSE = {rmse:.4g} {unit}\nMAE = {mae:.4g} {unit}",
+                 transform=axes[1].transAxes, ha="right", va="top", fontsize=9,
+                 bbox=dict(facecolor="white", edgecolor="0.85",
+                           boxstyle="round,pad=0.35", alpha=0.95))
+    fig.tight_layout()
+    fig.savefig(destination / "gravity_residuals_full_and_zoom.png",
+                dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -69,11 +162,19 @@ def main():
                         help="Override component metadata (use for older files)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Process only the first N files for testing")
-    parser.add_argument("--dpi", type=int, default=180)
+    parser.add_argument("--dpi", type=int, default=300)
+    parser.add_argument("--hist-percentile", type=float, default=99.5,
+                        help="Central absolute-residual percentile shown in zoom figure")
+    parser.add_argument("--hist-bins", type=int, default=60,
+                        help="Even number of histogram bins (default: 60)")
     args = parser.parse_args()
 
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be at least 1")
+    if not 0.0 < args.hist_percentile <= 100.0:
+        parser.error("--hist-percentile must be in (0, 100]")
+    if args.hist_bins < 2 or args.hist_bins % 2:
+        parser.error("--hist-bins must be even and at least 2")
 
     predictions_root = args.predictions_root or (ROOT / "outputs/ml/predict" / args.name)
     if not predictions_root.is_absolute():
@@ -155,16 +256,8 @@ def main():
     component = next(iter(units_seen))
     unit = "mGal" if component == "gz" else "E"
     pooled = np.concatenate(residual_blocks)
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.hist(pooled, bins=70, edgecolor="white")
-    ax.axvline(0, color="black", linestyle="--", label="Zero residual")
-    ax.set(xlabel=f"Observed - modeled {component.upper()} ({unit})",
-           ylabel="Observation-cell count",
-           title=f"{args.name}: {component.upper()} residuals ({len(rows)} {args.split} samples)")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(output / "gravity_residuals.png", dpi=args.dpi)
-    plt.close(fig)
+    save_residual_histograms(pooled, component, unit, output, args.dpi,
+                             percentile=args.hist_percentile, bins=args.hist_bins)
     print(f"\nSaved figures and CSV files to {output}")
     for item in summary:
         print(f"{item['geometry']}: n={item['n_samples']}, "
