@@ -97,7 +97,7 @@ class E09Model(tf.keras.Model):
         scale = tf.maximum(scale, tf.constant(1e-4, tf.float32))
         return tf.reduce_mean(tf.square((predicted - obs) / scale))
 
-    def _losses(self, x, targets, training):
+    def compute_e09_losses(self, x, targets, training):
         density_true = targets["density"]
         observed = targets["gravity"]
         prediction = self.density_net(x, training=training)
@@ -115,7 +115,7 @@ class E09Model(tf.keras.Model):
     def train_step(self, data):
         x, targets = data
         with tf.GradientTape() as tape:
-            terms = self._losses(x, targets, training=True)
+            terms = self.compute_e09_losses(x, targets, training=True)
         grads = tape.gradient(terms["loss"], self.density_net.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.density_net.trainable_variables))
         for name, tracker in self.metrics_loss.items():
@@ -124,7 +124,7 @@ class E09Model(tf.keras.Model):
 
     def test_step(self, data):
         x, targets = data
-        terms = self._losses(x, targets, training=False)
+        terms = self.compute_e09_losses(x, targets, training=False)
         for name, tracker in self.metrics_loss.items():
             tracker.update_state(terms[name])
         return {name: tracker.result() for name, tracker in self.metrics_loss.items()}
