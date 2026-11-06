@@ -97,9 +97,7 @@ def plot_volume_comparison(truth: np.ndarray, estimate: np.ndarray,
                 values, origin=origin, extent=extent, cmap="viridis",
                 vmin=scale_min, vmax=scale_max, aspect="auto",
             )
-            axes[row, column].set(
-                title=slice_title, xlabel=xlabel, ylabel=ylabel,
-            )
+            axes[row, column].set(title=slice_title, xlabel=xlabel, ylabel=ylabel)
         fig.colorbar(last_image, ax=axes[row, :], shrink=0.85, label=units)
         axes[row, 0].annotate(
             row_label, xy=(-0.2, 0.5), xycoords="axes fraction",
@@ -119,22 +117,22 @@ def _save(fig, output):
 
 def save_sample_plots(sample_name: str, gravity: np.ndarray, density: np.ndarray,
                       *, root: str | Path = "results/figures") -> None:
-    """Save both gravity and density plots inside a sample-named subfolder.
-
-    Example: results/figures/sample_000000/gravity.png and density.png
-    """
+    """Save both gravity and density plots inside a sample-named subfolder."""
     sample_name = str(sample_name)
     folder = Path(root) / sample_name
     plot_gravity(gravity, folder / "gravity.png")
     plot_density_slices(density, folder / "density.png")
 
+
 # Cross-section comparison tools (from export_three_panel_cross_sections.py)
 from scipy import ndimage
 from matplotlib.colors import TwoSlopeNorm
+
 SHAPE = (24, 64, 64)
 DENSITY_THRESHOLD = 0.1
 COLUMNS = ('Synthetic Model', 'Migration', 'Inversion')
 ROWS = ('XY', 'XZ', 'YZ')
+
 
 def _name(value: str) -> str:
     value = str(value).removesuffix('.npz')
@@ -193,18 +191,27 @@ def _slices(volume, center):
 
 
 def _figure(truth, mig, pred, center, title, output, migration_source, dpi):
+    """Save a 3x3 comparison with separate, nonoverlapping bottom colorbars."""
     volumes = [truth, mig, pred]
     nz, ny, nx = truth.shape
     density_max = max(float(np.max(np.abs(truth))), float(np.max(np.abs(pred))), 0.1)
     density_norm = TwoSlopeNorm(vmin=-density_max, vcenter=0, vmax=density_max)
     migmax = max(float(np.max(np.abs(mig))), 1e-6)
     mig_norm = TwoSlopeNorm(vmin=-migmax, vcenter=0, vmax=migmax)
-    fig, axes = plt.subplots(3, 3, figsize=(14.4, 11.2), constrained_layout=True,
-                             gridspec_kw={'height_ratios':[1.0, 0.78, 0.78]})
+
+    fig, axes = plt.subplots(
+        3, 3, figsize=(17, 13),
+        gridspec_kw={'height_ratios': [1.0, 0.78, 0.78]}
+    )
+    # Explicitly reserve an independent region for colorbars.
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.90, bottom=0.20,
+                        wspace=0.28, hspace=0.43)
+    density_image = None
+    migration_image = None
+
     for col, volume in enumerate(volumes):
         for row, section in enumerate(_slices(volume, center)):
             ax = axes[row, col]
-            # z=0 at top for vertical slices, x/y show geographic increasing coordinates.
             if row == 0:
                 extent = [0, nx*CELL_M, 0, ny*CELL_M]
                 origin = 'lower'
@@ -217,31 +224,52 @@ def _figure(truth, mig, pred, center, title, output, migration_source, dpi):
                 extent = [0, ny*CELL_M, nz*CELL_M, 0]
                 origin = 'upper'
                 xlabel, ylabel = 'North (m)', 'Depth (m)'
-            im = ax.imshow(section, cmap='RdBu_r',
-                           norm=mig_norm if col == 1 else density_norm,
-                           origin=origin, extent=extent, interpolation='nearest',
-                           aspect='auto')
-            ax.set_xlabel(xlabel, fontsize=9)
-            ax.set_ylabel(ylabel, fontsize=9)
-            ax.tick_params(labelsize=8)
+
+            im = ax.imshow(
+                section, cmap='RdBu_r',
+                norm=mig_norm if col == 1 else density_norm,
+                origin=origin, extent=extent, interpolation='nearest', aspect='auto'
+            )
             if col == 0:
-                z,y,x=center
-                ax.text(0.02, 0.97, [f'XY · depth {(z+0.5)*CELL_M:.0f} m',
-                                      f'XZ · north {(y+0.5)*CELL_M:.0f} m',
-                                      f'YZ · east {(x+0.5)*CELL_M:.0f} m'][row],
-                        transform=ax.transAxes, va='top', fontsize=9,
-                        bbox=dict(facecolor='white',alpha=.82,edgecolor='none',pad=3))
-            if row == 0: ax.set_title(COLUMNS[col], fontsize=14, weight='bold', pad=12)
-    bar_truth = fig.colorbar(axes[0, 0].images[0], ax=[axes[r,c] for c in (0,2) for r in range(3)],
-                             orientation='horizontal', shrink=.72, pad=.08, aspect=38)
-    bar_truth.set_label('Density contrast (g/cm³) · shared true/pred scale', fontsize=10)
-    bar_mig = fig.colorbar(axes[0, 1].images[0], ax=[axes[r,1] for r in range(3)],
-                           orientation='horizontal', shrink=.83, pad=.08, aspect=18)
-    bar_mig.set_label('Normalized migration (unitless)' if migration_source == 'normalized'
-                      else 'Migration amplitude (not calibrated density)', fontsize=10)
-    fig.suptitle(title, fontsize=16, weight='bold')
+                density_image = im
+            elif col == 1:
+                migration_image = im
+            ax.set_xlabel(xlabel, fontsize=13)
+            ax.set_ylabel(ylabel, fontsize=13)
+            ax.tick_params(axis='both', labelsize=11)
+            if col == 0:
+                z, y, x = center
+                section_labels = [
+                    f'XY · depth {(z+0.5)*CELL_M:.0f} m',
+                    f'XZ · north {(y+0.5)*CELL_M:.0f} m',
+                    f'YZ · east {(x+0.5)*CELL_M:.0f} m'
+                ]
+                ax.text(0.02, 0.97, section_labels[row],
+                        transform=ax.transAxes, va='top', fontsize=12,
+                        bbox=dict(facecolor='white', alpha=.85,
+                                  edgecolor='none', pad=4))
+            if row == 0:
+                ax.set_title(COLUMNS[col], fontsize=17, weight='bold', pad=14)
+
+    # Dedicated colorbar axes; these no longer steal/overlap subplot space.
+    density_cax = fig.add_axes([0.12, 0.095, 0.35, 0.018])
+    density_bar = fig.colorbar(density_image, cax=density_cax,
+                               orientation='horizontal')
+    density_bar.set_label(r'Density contrast (g/cm$^3$)', fontsize=13, labelpad=8)
+    density_bar.ax.tick_params(labelsize=11)
+
+    migration_cax = fig.add_axes([0.60, 0.095, 0.32, 0.018])
+    migration_bar = fig.colorbar(migration_image, cax=migration_cax,
+                                 orientation='horizontal')
+    migration_label = ('Normalized migration (unitless)'
+                       if migration_source == 'normalized'
+                       else 'Migration amplitude (not calibrated density)')
+    migration_bar.set_label(migration_label, fontsize=13, labelpad=8)
+    migration_bar.ax.tick_params(labelsize=11)
+
+    fig.suptitle(title, fontsize=19, weight='bold', y=0.97)
     output.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output, dpi=dpi, bbox_inches='tight')
+    fig.savefig(output, dpi=max(dpi, 300), bbox_inches='tight')
     plt.close(fig)
     return output
 
@@ -253,7 +281,6 @@ def export_one(path, prediction_root, split, threshold, connectivity,
     if not bodies:
         raise ValueError(f'{path}: no true bodies at threshold {threshold}')
     relative = path.relative_to(prediction_root)
-    # predictions/test/<sample>.npz -> figures/test/<sample>_cross_sections.png
     parts = relative.parts
     if len(parts) < 3 or parts[-3:-1] != ('predictions', split):
         raise ValueError(f'Unexpected prediction layout: {path}')
@@ -273,4 +300,3 @@ def export_one(path, prediction_root, split, threshold, connectivity,
                     f'{path.stem} | Body {number} ({count} voxels) — matched cross-sections',
                     output,migration_source,dpi))
     return outputs, len(bodies)
-

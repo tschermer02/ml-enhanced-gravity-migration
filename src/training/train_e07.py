@@ -1,38 +1,5 @@
 """Train signed E07 U-Net on mixed geologies and noise (E06_signed objective)."""
 from __future__ import annotations
-# BEGIN UNIFIED TRAINING IMPORTS
-
-from src.data.dataset import make_dataset, sample_paths
-from src.models.unet3d import build_unet3d
-from src.losses.losses import (
-    ordinary_mse, balanced_density_mse, balanced_huber_loss,
-    soft_tversky_loss, vertical_profile_loss, make_loss,
-)
-
-TVERSKY_WEIGHT = 0.1
-TVERSKY_ALPHA = 0.7
-TVERSKY_BETA = 0.3
-DENSITY_THRESHOLD = 0.1
-OCCUPANCY_TEMPERATURE = 0.025
-DEPTH_WEIGHT = 0.02
-THRESHOLD = DENSITY_THRESHOLD
-TEMP = OCCUPANCY_TEMPERATURE
-
-e03_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT})
-e05_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT})
-signed_e06_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT}, signed=True)
-
-def signed_balanced_density_mse(y_true, y_pred):
-    return balanced_density_mse(y_true, y_pred, signed=True)
-
-def signed_tversky(y_true, y_pred):
-    return soft_tversky_loss(y_true, y_pred, signed=True, subtract_baseline=True)
-
-def signed_vertical_profile(y_true, y_pred):
-    return vertical_profile_loss(y_true, y_pred, signed=True)
-
-# END UNIFIED TRAINING IMPORTS
-
 import argparse
 import csv
 import json
@@ -43,8 +10,11 @@ import tensorflow as tf
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-ROOT=Path(__file__).resolve().parents[2]
+ROOT=Path(__file__).resolve().parents[1]
 if str(ROOT/'src') not in sys.path:sys.path.insert(0,str(ROOT/'src'))
+from src.models.unet3d import build_unet3d
+from src.losses.e06_signed_losses import (signed_dataset,signed_e06_loss,
+    signed_balanced_density_mse,signed_tversky,signed_vertical_profile,TVERSKY_WEIGHT,DEPTH_WEIGHT)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -63,8 +33,8 @@ def main():
         if d.exists() and any(d.iterdir()):raise FileExistsError(f'Existing training outputs in {d}; use another --output-root')
     for d in dirs:d.mkdir(parents=True,exist_ok=True)
     tf.keras.utils.set_random_seed(args.seed)
-    train=make_dataset(data_root,'train',batch_size=args.batch_size,limit=args.limit,seed=args.seed)
-    valid=make_dataset(data_root,'validation',batch_size=args.batch_size,limit=args.limit,seed=args.seed)
+    train=signed_dataset(data_root,'train',batch_size=args.batch_size,limit=args.limit,seed=args.seed)
+    valid=signed_dataset(data_root,'validation',batch_size=args.batch_size,limit=args.limit,seed=args.seed)
     original=build_unet3d()
     head=tf.keras.layers.Conv3D(1,1,activation='tanh',name='signed_density_prediction')(original.get_layer('decoder1_conv2').output)
     model=tf.keras.Model(original.input,head,name='e07_signed_unet3d')

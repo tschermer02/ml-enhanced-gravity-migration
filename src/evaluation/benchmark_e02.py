@@ -16,11 +16,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from gravity_migration_ml.ml.e02_dataset import load_e02_sample  # noqa: E402
-from gravity_migration_ml.ml.e02_losses import structural_gradient_loss  # noqa: E402
-from gravity_migration_ml.ml.e02_physics import gravity_forward_tf  # noqa: E402
-from gravity_migration_ml.ml.e02_trainer import E02Trainer  # noqa: E402
-from gravity_migration_ml.ml.unet3d import build_unet3d  # noqa: E402
+from src.data.e02_dataset import load_e02_sample  # noqa: E402
+from src.losses.e02_losses import structural_gradient_loss  # noqa: E402
+from src.physics.e02_physics import gravity_forward_tf  # noqa: E402
+from src.training.e02_trainer import E02Trainer  # noqa: E402
+from src.models.unet3d import build_unet3d  # noqa: E402
 
 DATA_ROOT = ROOT / "outputs" / "ml" / "training" / "E01" / "data"
 GRAVITY_ROOT = SRC / "data" / "dataset" / "forward_models"

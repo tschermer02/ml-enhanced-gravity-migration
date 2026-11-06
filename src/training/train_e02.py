@@ -12,39 +12,6 @@ No gravity physics loss or structural loss is used.
 """
 
 from __future__ import annotations
-# BEGIN UNIFIED TRAINING IMPORTS
-
-from src.data.dataset import make_dataset, sample_paths
-from src.models.unet3d import build_unet3d
-from src.losses.losses import (
-    ordinary_mse, balanced_density_mse, balanced_huber_loss,
-    soft_tversky_loss, vertical_profile_loss, make_loss,
-)
-
-TVERSKY_WEIGHT = 0.1
-TVERSKY_ALPHA = 0.7
-TVERSKY_BETA = 0.3
-DENSITY_THRESHOLD = 0.1
-OCCUPANCY_TEMPERATURE = 0.025
-DEPTH_WEIGHT = 0.02
-THRESHOLD = DENSITY_THRESHOLD
-TEMP = OCCUPANCY_TEMPERATURE
-
-e03_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT})
-e05_combined_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT})
-signed_e06_loss = make_loss(weights={"balanced_mse": 1, "tversky": TVERSKY_WEIGHT, "depth": DEPTH_WEIGHT}, signed=True)
-
-def signed_balanced_density_mse(y_true, y_pred):
-    return balanced_density_mse(y_true, y_pred, signed=True)
-
-def signed_tversky(y_true, y_pred):
-    return soft_tversky_loss(y_true, y_pred, signed=True, subtract_baseline=True)
-
-def signed_vertical_profile(y_true, y_pred):
-    return vertical_profile_loss(y_true, y_pred, signed=True)
-
-# END UNIFIED TRAINING IMPORTS
-
 
 import argparse
 import json
@@ -64,13 +31,19 @@ import tensorflow as tf
 # 1. PROJECT PATHS
 # ============================================================
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from src.data.dataset import (
+    make_dataset,
+    sample_paths
+)
 
+from src.losses.losses import balanced_huber_loss
+from src.models.unet3d import build_unet3d
 
 
 # ============================================================
