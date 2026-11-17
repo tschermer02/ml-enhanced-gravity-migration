@@ -1,0 +1,9 @@
+{
+  "experiment": "E10D",
+  "scale": 32180.729492187493,
+  "source": "raw migration",
+  "transform": "network_input = raw migration / fixed scale",
+  "training_root": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/training/E10D",
+  "dataset": "/scratch/general/vast/u1623542/gravity_datasets/D06C/data",
+  "split": "test"
+}

@@ -1,0 +1,44 @@
+{
+  "e08_path": "outputs/ml/field/Thunderbird_E08D",
+  "e10_path": "outputs/ml/field/Thunderbird_E10D_mosaic",
+  "shape": [
+    24,
+    800,
+    800
+  ],
+  "shared_coverage_fraction": 1.0,
+  "threshold_gcm3": 0.1,
+  "plotly_sampled_voxel_counts_above_threshold": {
+    "E08D": {
+      "positive": 6719,
+      "negative": 3649
+    },
+    "E10D": {
+      "positive": 15246,
+      "negative": 8156
+    }
+  },
+  "visualization_stride": 6,
+  "E08D": {
+    "mean_density_gcm3": 0.002629164606332779,
+    "mean_absolute_density_gcm3": 0.008732007816433907,
+    "positive_fraction_above_threshold": 0.0153078125,
+    "negative_fraction_below_threshold": 0.007973763020833333
+  },
+  "E10D": {
+    "mean_density_gcm3": 0.011990290135145187,
+    "mean_absolute_density_gcm3": 0.03209378570318222,
+    "positive_fraction_above_threshold": 0.038084114583333335,
+    "negative_fraction_below_threshold": 0.0206259765625
+  },
+  "gzz_checks": {
+    "evaluated_tiles": 8,
+    "mean_tile_metrics": {
+      "e08_rmse_E": 58.87198344221064,
+      "e10_rmse_E": 53.40573979635601,
+      "e08_mae_E": 56.805258064582716,
+      "e10_mae_E": 51.20481727273611
+    },
+    "note": "Unweighted mean of tile RMSE, computed only at observation grid nodes within max station distance; mosaic forward model ignores density outside the 640m window and altitude mismatch."
+  }
+}

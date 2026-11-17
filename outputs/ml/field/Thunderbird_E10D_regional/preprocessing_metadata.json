@@ -1,0 +1,26 @@
+{
+  "source": "src/data/Thunderbird_gravity_data/Tbird_gravity.dat",
+  "channel": 7,
+  "observation_shape": [
+    81,
+    81
+  ],
+  "model_shape": [
+    24,
+    64,
+    64
+  ],
+  "survey_width_x_m": 7999.699999999953,
+  "survey_width_y_m": 7999.5,
+  "scale_factor": 12.499531249999928,
+  "flight_height_m": 100.0,
+  "flight_height_model_m": 8.000300011250468,
+  "physical_model_width_m": 7999.699999999953,
+  "physical_model_depth_m": 2999.8874999999825,
+  "outside_observation_hull_fraction": 0.3763145861911294,
+  "edge_fill": "nearest station extrapolation",
+  "migration": "Gzz FFT with airborne separation and depth weighting",
+  "network": "E10D unchanged",
+  "fixed_migration_scale": 32180.729492187493,
+  "flight_height_interpretation": "nominal 100 m above a flat reference surface"
+}

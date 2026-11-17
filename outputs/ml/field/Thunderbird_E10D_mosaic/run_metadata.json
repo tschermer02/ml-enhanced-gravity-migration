@@ -1,0 +1,27 @@
+{
+  "input": "src/data/Thunderbird_gravity_data/Tbird_gravity.dat",
+  "checkpoint": "outputs/ml/training/E10D/checkpoints/best_unet3d.keras",
+  "channel": 7,
+  "assumed_component": "Gzz",
+  "assumed_unit": "Eotvos (UNVERIFIED)",
+  "station_count": 41124,
+  "data_columns": "x,y,z,channel,value",
+  "observed_z": 0.0,
+  "model_shape": [
+    24,
+    800,
+    800
+  ],
+  "model_cell_size_m": 10,
+  "model_origin_xy": [
+    553000,
+    5848000
+  ],
+  "stride_m": 480,
+  "tiles_completed": 289,
+  "tiles_expected": 289,
+  "complete": true,
+  "max_station_distance_limit_m": 180.0,
+  "fraction_grid_samples_far_from_station": 0.03743363452592097,
+  "warning": "Pretrained synthetic model and coarse irregular field survey; predictions not validated density inversion."
+}
