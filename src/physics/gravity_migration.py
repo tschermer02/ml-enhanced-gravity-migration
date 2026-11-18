@@ -5,10 +5,29 @@ This is not the unweighted exact discrete transpose of the forward operator.
 from __future__ import annotations
 import numpy as np
 from scipy.signal import fftconvolve
-from .gravity_forward import G, CELL_SIZE, SHAPE, OBS_SHAPE, gzz_kernel
+from .gravity_forward import (
+    G,
+    CELL_SIZE,
+    SHAPE,
+    OBS_SHAPE,
+    gzz_kernel,
+    E11_DX_M,
+    E11_DY_M,
+    E11_DZ_M,
+)
 
 
-def calculate_migration(gravity, component="gz", restrict=False, ro_min=None, ro_max=None):
+def calculate_migration(
+    gravity,
+    component="gz",
+    restrict=False,
+    ro_min=None,
+    ro_max=None,
+    dx_m=CELL_SIZE,
+    dy_m=CELL_SIZE,
+    dz_m=CELL_SIZE,
+    observation_height_m=0.0,
+):
     """Migrate a surface anomaly onto (z,y,x) voxel grid.
 
     For Gz, default restricted range is [0,1]; for Gzz, [-1,1].
@@ -17,6 +36,15 @@ def calculate_migration(gravity, component="gz", restrict=False, ro_min=None, ro
     component = component.lower()
     if component not in ("gz", "gzz"):
         raise ValueError("component must be 'gz' or 'gzz'")
+    if not np.all(np.isfinite([dx_m, dy_m, dz_m, observation_height_m])):
+        raise ValueError("Cell dimensions and observation height must be finite")
+
+    if min(dx_m, dy_m, dz_m) <= 0:
+        raise ValueError("Cell dimensions must be positive")
+
+    if observation_height_m < 0:
+        raise ValueError("Observation height must be nonnegative")
+    
     gravity = np.asarray(gravity, dtype=np.float64)
     if gravity.shape != OBS_SHAPE or not np.isfinite(gravity).all():
         raise ValueError(f"Gravity must be finite with shape {OBS_SHAPE}")
@@ -25,20 +53,63 @@ def calculate_migration(gravity, component="gz", restrict=False, ro_min=None, ro
     if ro_min > ro_max:
         raise ValueError("ro_min must not exceed ro_max")
     gamma = G * 1e8
-    offsets = np.arange(-72, 72, dtype=np.float64) * CELL_SIZE
-    dy, dx = np.meshgrid(offsets, offsets, indexing="ij")
+
+    # Horizontal offsets between observations and model cells
+    offsets_x = np.arange(-72, 72, dtype=np.float64) * dx_m
+    offsets_y = np.arange(-72, 72, dtype=np.float64) * dy_m
+
+    dy, dx = np.meshgrid(
+        offsets_y,
+        offsets_x,
+        indexing="ij"
+    )
+
     result = np.empty(SHAPE, dtype=np.float64)
+
     for iz in range(SHAPE[0]):
-        depth = (iz + .5) * CELL_SIZE
+
+        # Physical depth of the cell center
+        depth = (iz + 0.5) * dz_m
+
+        # Distance from the cell center to the elevated observation plane
+        separation = depth + observation_height_m
+
         if component == "gz":
-            r2 = dx**2 + dy**2 + depth**2
-            kernel = depth / (r2 * np.sqrt(r2))
-            multiplier = depth / (gamma * np.sqrt(np.pi))
+
+            r2 = dx**2 + dy**2 + separation**2
+
+            kernel = separation / (r2 * np.sqrt(r2))
+
+            multiplier = (
+                separation /
+                (gamma * np.sqrt(np.pi))
+            )
+
         else:
-            kernel = gzz_kernel(depth)
-            multiplier = depth**2 / (gamma * np.sqrt(3 * np.pi) / 2.0)
-        full = fftconvolve(gravity, kernel[::-1, ::-1], mode="full")
-        result[iz] = full[80:80 + SHAPE[1], 80:80 + SHAPE[2]] * multiplier
+
+            kernel = gzz_kernel(
+                separation,
+                dx_m=dx_m,
+                dy_m=dy_m
+            )
+
+            multiplier = (
+                separation**2 /
+                (gamma * np.sqrt(3 * np.pi) / 2.0)
+            )
+
+        full = fftconvolve(
+            gravity,
+            kernel[::-1, ::-1],
+            mode="full"
+        )
+
+        result[iz] = (
+            full[
+                80:80 + SHAPE[1],
+                80:80 + SHAPE[2]
+            ] * multiplier
+        )
     if restrict:
         lo, hi = result.min(), result.max()
         if hi > lo:
@@ -48,9 +119,29 @@ def calculate_migration(gravity, component="gz", restrict=False, ro_min=None, ro
     return result
 
 
-def calculate_gzz_migration(gravity, restrict=False, ro_min=-1.0, ro_max=1.0):
+def calculate_gzz_migration(
+    gravity,
+    restrict=False,
+    ro_min=-1.0,
+    ro_max=1.0,
+    dx_m=CELL_SIZE,
+    dy_m=CELL_SIZE,
+    dz_m=CELL_SIZE,
+    observation_height_m=0.0,
+):
     """Convenience alias for the Gzz migration operator."""
-    return calculate_migration(gravity, "gzz", restrict, ro_min, ro_max)
+
+    return calculate_migration(
+        gravity,
+        component="gzz",
+        restrict=restrict,
+        ro_min=ro_min,
+        ro_max=ro_max,
+        dx_m=dx_m,
+        dy_m=dy_m,
+        dz_m=dz_m,
+        observation_height_m=observation_height_m,
+    )
 
 
 def normalize_migration(migration, epsilon=1e-8):

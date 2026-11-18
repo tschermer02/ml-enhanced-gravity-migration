@@ -207,3 +207,73 @@ def make_loss(*, weights=None, **options):
 
     combined_loss.__name__ = "combined_density_loss"
     return combined_loss
+
+
+# E11 additions below. The original loss functions above remain unchanged.
+
+def e11_loss_components(
+    density_true,
+    density_pred,
+    *,
+    gravity_clean=None,
+    observation_height_m=0.0,
+    dx_m=125.0,
+    dy_m=125.0,
+    dz_m=1000.0 / 24.0,
+    physics_weight=0.0,
+    physics_normalization_e=100.0,
+):
+    """E08D signed density objective plus optional E11 Gzz consistency.
+
+    E11A/B/D: physics_weight=0.0 -> exactly the E08D loss components.
+    E11C/E:   physics_weight>0 -> additionally compare predicted Gzz against
+              clean synthetic observations (Eotvos) at the correct height.
+
+    density_true and density_pred: (B,24,64,64,1), g/cm^3.
+    gravity_clean: (B,81,81,1), Eotvos, required only when physics_weight>0.
+    observation_height_m: a scalar or length-B vector, in physical meters.
+    Physical cell dimensions are in meters. This function is intended to be
+    called inside a custom TensorFlow training step, not model.compile(loss=...).
+
+    physics_normalization_e=100 E is a *starting scale*, not a measured noise
+    level; calibrate it using training Gzz amplitudes and loss/gradient magnitudes.
+    """
+    if not 0.0 <= float(physics_weight):
+        raise ValueError("physics_weight must be nonnegative")
+    if not 0.0 < float(physics_normalization_e):
+        raise ValueError("physics_normalization_e must be positive")
+
+    weights = {
+        "balanced_huber": 1.0,
+        "tversky": 0.1,
+        "depth": 0.02,
+    }
+    if physics_weight > 0:
+        if gravity_clean is None:
+            raise ValueError("gravity_clean is required when physics_weight > 0")
+        # Lazy import: legacy losses do not need the E11 forward-model module.
+        from src.physics.gravity_forward_tf import gravity_gzz_forward_tf
+
+        def forward_model(density):
+            return gravity_gzz_forward_tf(
+                density,
+                observation_height_m=observation_height_m,
+                dx_m=dx_m,
+                dy_m=dy_m,
+                dz_m=dz_m,
+            )
+
+        weights["physics"] = float(physics_weight)
+    else:
+        forward_model = None
+
+    return loss_components(
+        density_true,
+        density_pred,
+        weights=weights,
+        signed=True,
+        huber_delta=0.1,
+        gravity_observed=gravity_clean,
+        forward_model=forward_model,
+        gravity_normalization=physics_normalization_e,
+    )

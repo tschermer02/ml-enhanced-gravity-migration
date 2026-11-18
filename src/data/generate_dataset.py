@@ -5,6 +5,13 @@ Run from the repository root::
     python -m src.data.generate_dataset --name E08 --geometries compact multiple dipping salt_dome \
         --train 2000 --validation 160 --test 100 --component gz --noise 0 5 10 15
 
+E11 example::
+
+    python -m src.data.generate_dataset --name D11_TEST --grid e11 \
+        --geometries compact multiple dipping salt_dome broad_intrusion \
+        --train 20 --validation 20 --test 20 --component gzz --density signed \
+        --noise 0 5 10 15 --observation-heights 0 50 100 150 200
+
 Counts mean saved samples, not underlying bodies. For paired noise, each repeated
 noise condition shares the same model within a group; total counts stay fixed.
 """
@@ -20,6 +27,8 @@ from pathlib import Path
 
 import numpy as np
 
+from src.physics.gravity_forward import E11_DX_M, E11_DY_M, E11_DZ_M
+
 ROOT = Path(__file__).resolve().parents[2]
 # Transitional compatibility: existing physics modules use `physics.*` imports.
 if str(ROOT / "src") not in sys.path:
@@ -28,7 +37,7 @@ SHAPE = (24, 64, 64)
 NZ, NY, NX = SHAPE
 CELL_M = 10.0
 Z, Y, X = np.ogrid[:NZ, :NY, :NX]
-GEOMETRIES = ("compact", "multiple", "multiple_depths", "dipping", "salt_dome")
+GEOMETRIES = ("compact", "multiple", "multiple_depths", "dipping", "salt_dome", "broad_intrusion")
 SPLITS = ("train", "validation", "test")
 
 
@@ -45,6 +54,94 @@ def draw_prism(density, bounds, value):
     x0, x1, y0, y1, z0, z1 = bounds
     density[z0:z1, y0:y1, x0:x1] = value
 
+def generate_broad_intrusion(rng, dx_m=E11_DX_M, dz_m=E11_DZ_M):
+    """Generate one elongated, positive-density intrusive body."""
+
+    for attempt in range(1000):
+
+        length = float(rng.uniform(16, 40))
+        width = float(rng.uniform(5, 14))
+        thickness = float(rng.uniform(3, 10))
+
+        strike = float(rng.uniform(0, np.pi))
+        dip_deg = float(rng.uniform(-8, 8))
+        dip = np.deg2rad(dip_deg)
+
+        # Keep the rotated body inside the model.
+        radius = np.hypot(length / 2, width / 2)
+        margin = radius + 2
+
+        xc = float(rng.uniform(margin, NX - margin))
+        yc = float(rng.uniform(margin, NY - margin))
+
+        top_center = float(rng.uniform(1, 10))
+
+        # Cell-center coordinates.
+        xx = np.arange(NX, dtype=np.float64) + 0.5
+        yy = np.arange(NY, dtype=np.float64) + 0.5
+        zz = np.arange(NZ, dtype=np.float64) + 0.5
+
+        YY, XX = np.meshgrid(yy, xx, indexing="ij")
+
+        # Rotate the horizontal coordinates.
+        u = (
+            (XX - xc) * np.cos(strike)
+            + (YY - yc) * np.sin(strike)
+        )
+
+        v = (
+            -(XX - xc) * np.sin(strike)
+            + (YY - yc) * np.cos(strike)
+        )
+
+        # Elliptical horizontal footprint.
+        footprint = (
+            (u / (length / 2))**2
+            + (v / (width / 2))**2
+            <= 1.0
+        )
+
+        # Convert physical dip to vertical-cell displacement.
+        vertical_slope = (
+            np.tan(dip) * dx_m / dz_m
+        )
+
+        top = top_center + vertical_slope * u
+
+        # Mild changes in thickness along the intrusion.
+        thickness_field = thickness * (
+            0.8 + 0.2 * np.cos(np.pi * u / length)
+        )
+
+        bottom = top + thickness_field
+
+        # Reject bodies extending outside the model depth.
+        if (
+            np.min(top[footprint]) < 1.0
+            or np.max(bottom[footprint]) > NZ - 1.0
+        ):
+            continue
+
+        mask = (
+            footprint[None, :, :]
+            & (zz[:, None, None] >= top[None, :, :])
+            & (zz[:, None, None] < bottom[None, :, :])
+        )
+
+        if np.count_nonzero(mask) < 50:
+            continue
+
+        density = np.zeros(SHAPE, dtype=np.float32)
+
+        contrast = float(rng.uniform(0.2, 0.8))
+        density[mask] = contrast
+
+        return density
+
+    raise RuntimeError(
+        "Could not generate a valid broad intrusion"
+    )
+
 
 def separated(a, b, gap):
     ax0, ax1, ay0, ay1, az0, az1 = a
@@ -55,14 +152,14 @@ def separated(a, b, gap):
 
 
 def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
-                     density_sign="positive"):
+                     density_sign="positive", dx_m=CELL_M, dz_m=CELL_M):
     """Build a density volume using the original geometry recipes.
 
     `multiple` uses a configurable number of separated prisms. The remaining
     modes retain the shapes of the existing research generators.
 
-    Salt domes always have negative density contrast, regardless of
-    `density_sign`. Other geometries follow the selected sign mode:
+    Salt domes are always negative and broad intrusions always positive.
+    The remaining geometries follow the selected sign mode:
     positive, negative, or signed (random sign per sample).
     Basement geometry is not supported.
     """
@@ -116,14 +213,17 @@ def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
         mask = ((r2 <= stem_r ** 2) & (Z >= stem_top) & (Z < 23)) | \
                ((r2 <= cap_r ** 2) & (Z >= cap_top) & (Z <= 16))
         rho = (mask * float(rng.uniform(.2, .8))).astype(np.float32)
+    elif geometry == "broad_intrusion":
+        rho = generate_broad_intrusion(rng, dx_m=dx_m, dz_m=dz_m)
     else:
         raise ValueError(f"Unknown geometry: {geometry}")
 
-    # Salt domes always have negative density contrast, even when the
-    # dataset was requested with --density positive.
-    # All other geometries follow --density; signed selects one sign per sample.
+    # Salt domes are negative and broad intrusions positive irrespective of
+    # --density. Other geometries follow the requested sign mode.
     if geometry == "salt_dome":
         rho = -np.abs(rho)
+    elif geometry == "broad_intrusion":
+        rho = np.abs(rho)
     elif density_sign == "negative":
         rho = -np.abs(rho)
     elif density_sign == "signed":
@@ -176,12 +276,21 @@ def physics_for_sample(job):
         density = np.asarray(arr["density"], dtype=np.float32)
         model_id = int(arr["model_id"])
         geometry = str(arr["geometry"].item())
+        dx_m = float(arr["dx_m"]) if "dx_m" in arr else CELL_M
+        dy_m = float(arr["dy_m"]) if "dy_m" in arr else CELL_M
+        dz_m = float(arr["dz_m"]) if "dz_m" in arr else CELL_M
+        height = (float(arr["observation_height_m"])
+                  if "observation_height_m" in arr else 0.0)
     from src.physics.gravity_forward import calculate_gravity
     from src.physics.gravity_migration import calculate_migration
 
     unit = "mGal" if component == "gz" else "E"
     clean = np.asarray(
-        calculate_gravity(density, component=component),
+        calculate_gravity(
+            density, component=component,
+            dx_m=dx_m, dy_m=dy_m, dz_m=dz_m,
+            observation_height_m=height,
+        ),
         dtype=np.float64
     )
     std = float(noise) / 100 * float(np.max(np.abs(clean)))
@@ -190,7 +299,11 @@ def physics_for_sample(job):
     rng = np.random.default_rng(np.random.SeedSequence([seed, model_id, geom_code, 991]))
     measured = clean + std * rng.standard_normal(clean.shape)
     migration = np.asarray(
-         calculate_migration(measured, component=component, restrict=False),
+        calculate_migration(
+            measured, component=component, restrict=False,
+            dx_m=dx_m, dy_m=dy_m, dz_m=dz_m,
+            observation_height_m=height,
+        ),
          dtype=np.float64
     )
     scale = max(float(np.max(np.abs(migration))), 1e-8)
@@ -224,11 +337,33 @@ def generate_dataset(args):
         raise ValueError("Invalid split counts or workers")
     if args.train + args.validation + args.test < 1:
         raise ValueError("At least one sample is required")
+    heights = list(dict.fromkeys(
+        float(h) for h in args.observation_heights
+    ))
+
+    if (
+        not heights
+        or not np.isfinite(heights).all()
+        or min(heights) < 0
+    ):
+        raise ValueError(
+            "Observation heights must be finite and nonnegative"
+        )
+
+    if args.grid == "legacy":
+        dx_m = dy_m = dz_m = CELL_M
+    else:
+        dx_m = E11_DX_M
+        dy_m = E11_DY_M
+        dz_m = E11_DZ_M
     config = dict(name=name, geometries=geom, train=args.train, validation=args.validation,
                   test=args.test, component=args.component, noise=noise, paired_noise=args.paired_noise,
                   density=args.density, min_bodies=args.min_bodies,
                   max_bodies=args.max_bodies, gap_cells=args.gap_cells, seed=args.seed,
                   shape=list(SHAPE), cell_size_m=CELL_M,
+                  grid=args.grid, dx_m=dx_m, dy_m=dy_m, dz_m=dz_m,
+                  observation_heights_m=heights,
+                  model_extent_m=[NX * dx_m, NY * dy_m, NZ * dz_m],
                   noise_definition="Gaussian std as percent of max abs clean response",
                   layout="split/geometry[/noise_NN]/sample")
     config_path = root / "config.json"
@@ -247,8 +382,14 @@ def generate_dataset(args):
         assignment = allocate(count, geom, noise, rng, args.paired_noise)
         for idx, (geometry, level, group) in enumerate(assignment):
             sid = f"sample_{idx:06d}"
-            rows.append(dict(split=split, sample_id=sid, geometry=geometry,
-                             noise_percent=level, model_id=int(group)))
+            # Cycle heights by underlying model ID, preserving height across
+            # paired-noise repetitions of the same geological body.
+            height_index = (int(group) + GEOMETRIES.index(geometry)) % len(heights)
+            rows.append(dict(
+                split=split, sample_id=sid, geometry=geometry,
+                noise_percent=level, model_id=int(group),
+                observation_height_m=float(heights[height_index]),
+            ))
     if args.stage == "physics" and not config_path.exists():
         raise FileNotFoundError("Run --stage models first")
     if args.stage in ("models", "all"):
@@ -277,7 +418,8 @@ def generate_dataset(args):
                         cache[group_key] = generate_density(
                             row["geometry"], rng,
                             args.min_bodies, args.max_bodies,
-                            args.gap_cells, args.density
+                            args.gap_cells, args.density,
+                            dx_m=dx_m, dz_m=dz_m,
                         )
 
                     path.parent.mkdir(parents=True, exist_ok=True)
@@ -287,7 +429,11 @@ def generate_dataset(args):
                         density=cache[group_key],
                         geometry=np.str_(row["geometry"]),
                         model_id=np.int32(row["model_id"]),
-                        noise_percent=np.float64(row["noise_percent"])
+                        noise_percent=np.float64(row["noise_percent"]),
+                        observation_height_m=np.float64(row["observation_height_m"]),
+                        dx_m=np.float64(dx_m),
+                        dy_m=np.float64(dy_m),
+                        dz_m=np.float64(dz_m),
                     )
 
                 # Print progress every 25 samples
@@ -350,6 +496,20 @@ def main():
     p.add_argument("--stage", choices=("models", "physics", "all"), default="all")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--workers", type=int, default=1)
+    p.add_argument(
+        "--grid",
+        choices=("legacy", "e11"),
+        default="legacy",
+        help="Physical grid geometry; legacy preserves 10 m cubic cells",
+    )
+
+    p.add_argument(
+        "--observation-heights",
+        nargs="+",
+        type=float,
+        default=[0.0],
+        help="Receiver heights above the model surface, in meters",
+    )
     p.add_argument("--overwrite", action="store_true")
     args = p.parse_args()
     generate_dataset(args)
