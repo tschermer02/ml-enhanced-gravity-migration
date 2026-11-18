@@ -40,12 +40,12 @@ HUBER_DELTA = 0.1
 LEARNING_RATE = 1e-3
 
 EXPERIMENT_DATASETS = {
-    "E11BASE": "D11_BASE",
-    "E11A": "D11_INTRUSIVE",
-    "E11B": "D11_HEIGHT",
-    "E11C": "D11_BASE",
-    "E11D": "D11_COMBINED",
-    "E11E": "D11_COMBINED",
+    "E11BASE": "D07",
+    "E11A": "D08",
+    "E11B": "D09",
+    "E11C": "D07",
+    "E11D": "D10",
+    "E11E": "D10",
 }
 PHYSICS_EXPERIMENTS = {"E11C", "E11E"}
 
