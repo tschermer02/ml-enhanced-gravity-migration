@@ -1,201 +1,211 @@
-"""E12 synthetic geology, isolated copy of E11 geometry rules."""
-import numpy as np
-from .config import SHAPE, MODEL_DX_M, MODEL_DZ_M
-NZ,NY,NX=SHAPE
-Z,Y,X=np.ogrid[:NZ,:NY,:NX]
+"""Reusable loss terms and weighted objectives for 3-D density inversion.
 
-def random_prism(rng, z_low=2, z_high=16):
-    wx, wy = rng.integers(4, 17, size=2)
-    wz = int(rng.integers(2, 9))
-    x0 = int(rng.integers(2, NX - 2 - wx + 1))
-    y0 = int(rng.integers(2, NY - 2 - wy + 1))
-    z0 = int(rng.integers(z_low, min(z_high, NZ - wz) + 1))
-    return x0, x0 + int(wx), y0, y0 + int(wy), z0, z0 + wz
+Arrays are (batch, z, y, x, channel), density is in g/cm^3.
+The legacy occupancy options preserve differences in earlier experiments.
+"""
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping
+import tensorflow as tf
 
 
-def draw_prism(density, bounds, value):
-    x0, x1, y0, y1, z0, z1 = bounds
-    density[z0:z1, y0:y1, x0:x1] = value
-
-def generate_broad_intrusion(rng, dx_m=MODEL_DX_M, dz_m=MODEL_DZ_M):
-    """Generate one elongated, positive-density intrusive body."""
-
-    for attempt in range(1000):
-
-        length = float(rng.uniform(16, 40))
-        width = float(rng.uniform(5, 14))
-        thickness = float(rng.uniform(3, 10))
-
-        strike = float(rng.uniform(0, np.pi))
-        dip_deg = float(rng.uniform(-8, 8))
-        dip = np.deg2rad(dip_deg)
-
-        # Keep the rotated body inside the model.
-        radius = np.hypot(length / 2, width / 2)
-        margin = radius + 2
-
-        xc = float(rng.uniform(margin, NX - margin))
-        yc = float(rng.uniform(margin, NY - margin))
-
-        top_center = float(rng.uniform(1, 10))
-
-        # Cell-center coordinates.
-        xx = np.arange(NX, dtype=np.float64) + 0.5
-        yy = np.arange(NY, dtype=np.float64) + 0.5
-        zz = np.arange(NZ, dtype=np.float64) + 0.5
-
-        YY, XX = np.meshgrid(yy, xx, indexing="ij")
-
-        # Rotate the horizontal coordinates.
-        u = (
-            (XX - xc) * np.cos(strike)
-            + (YY - yc) * np.sin(strike)
-        )
-
-        v = (
-            -(XX - xc) * np.sin(strike)
-            + (YY - yc) * np.cos(strike)
-        )
-
-        # Elliptical horizontal footprint.
-        footprint = (
-            (u / (length / 2))**2
-            + (v / (width / 2))**2
-            <= 1.0
-        )
-
-        # Convert physical dip to vertical-cell displacement.
-        vertical_slope = (
-            np.tan(dip) * dx_m / dz_m
-        )
-
-        top = top_center + vertical_slope * u
-
-        # Mild changes in thickness along the intrusion.
-        thickness_field = thickness * (
-            0.8 + 0.2 * np.cos(np.pi * u / length)
-        )
-
-        bottom = top + thickness_field
-
-        # Reject bodies extending outside the model depth.
-        if (
-            np.min(top[footprint]) < 1.0
-            or np.max(bottom[footprint]) > NZ - 1.0
-        ):
-            continue
-
-        mask = (
-            footprint[None, :, :]
-            & (zz[:, None, None] >= top[None, :, :])
-            & (zz[:, None, None] < bottom[None, :, :])
-        )
-
-        if np.count_nonzero(mask) < 50:
-            continue
-
-        density = np.zeros(SHAPE, dtype=np.float32)
-
-        contrast = float(rng.uniform(0.2, 0.8))
-        density[mask] = contrast
-
-        return density
-
-    raise RuntimeError(
-        "Could not generate a valid broad intrusion"
-    )
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def ordinary_mse(y_true, y_pred):
+    return tf.reduce_mean(tf.square(y_pred - tf.cast(y_true, y_pred.dtype)))
 
 
-def separated(a, b, gap):
-    ax0, ax1, ay0, ay1, az0, az1 = a
-    bx0, bx1, by0, by1, bz0, bz1 = b
-    return (ax1 + gap <= bx0 or bx1 + gap <= ax0 or
-            ay1 + gap <= by0 or by1 + gap <= ay0 or
-            az1 + gap <= bz0 or bz1 + gap <= az0)
+def _huber_values(y_true, y_pred, delta=0.1):
+    if delta <= 0:
+        raise ValueError("delta must be positive")
+    e = tf.abs(y_pred - tf.cast(y_true, y_pred.dtype))
+    d = tf.cast(delta, y_pred.dtype)
+    quadratic = tf.minimum(e, d)
+    return 0.5 * tf.square(quadratic) + d * (e - quadratic)
 
 
-def generate_density(geometry, rng, min_bodies=1, max_bodies=3, gap_cells=2,
-                     density_sign="positive", dx_m=MODEL_DX_M, dz_m=MODEL_DZ_M):
-    """Build a density volume using the original geometry recipes.
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def huber_model_loss(y_true, y_pred, delta=0.1):
+    return tf.reduce_mean(_huber_values(y_true, y_pred, delta))
 
-    `multiple` uses a configurable number of separated prisms. The remaining
-    modes retain the shapes of the existing research generators.
 
-    Salt domes are always negative and broad intrusions always positive.
-    The remaining geometries follow the selected sign mode:
-    positive, negative, or signed (random sign per sample).
-    Basement geometry is not supported.
+def _balanced(values, y_true, signed=False):
+    truth = tf.cast(y_true, values.dtype)
+    mask = tf.abs(truth) > 0 if signed else truth > 0
+    body = tf.cast(mask, values.dtype)
+    background = 1.0 - body
+    axes = tf.range(1, tf.rank(values))
+    inside = tf.math.divide_no_nan(tf.reduce_sum(values * body, axis=axes),
+                                   tf.reduce_sum(body, axis=axes))
+    outside = tf.math.divide_no_nan(tf.reduce_sum(values * background, axis=axes),
+                                    tf.reduce_sum(background, axis=axes))
+    return tf.reduce_mean(0.5 * (inside + outside))
+
+
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def balanced_density_mse(y_true, y_pred, signed=False):
+    values = tf.square(y_pred - tf.cast(y_true, y_pred.dtype))
+    return _balanced(values, y_true, signed=signed)
+
+
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def balanced_huber_loss(y_true, y_pred, delta=0.1, signed=False):
+    return _balanced(_huber_values(y_true, y_pred, delta), y_true, signed=signed)
+
+
+def soft_occupancy(values, *, threshold=0.1, temperature=0.025,
+                   signed=False, subtract_baseline=False):
+    """Smooth body occupancy. Signed mode uses |density|.
+
+    subtract_baseline=False reproduces the original Tversky mapping;
+    True reproduces the baseline-subtracted vertical/signed mapping.
     """
-    rho = np.zeros(SHAPE, dtype=np.float32)
-    if geometry == "compact":
-        draw_prism(rho, random_prism(rng), float(rng.uniform(.2, 1.)))
-    elif geometry == "multiple":
-        count = int(rng.integers(min_bodies, max_bodies + 1))
-        bounds = []
-        for n in range(count):
-            for _ in range(1000):
-                candidate = random_prism(rng)
-                if all(separated(candidate, other, gap_cells) for other in bounds):
-                    break
-            else:
-                raise RuntimeError(f"Could not place prism {n+1}; reduce body count or gap")
-            draw_prism(rho, candidate, float(rng.uniform(.2, 1.)))
-            bounds.append(candidate)
-    elif geometry == "multiple_depths":
-        for lo, hi in ((2, 7), (8, 14), (15, 22)):
-            wx, wy = rng.integers(4, 16, size=2)
-            wz = int(rng.integers(2, min(6, hi - lo) + 1))
-            x0 = int(rng.integers(2, NX - 2 - wx + 1))
-            y0 = int(rng.integers(2, NY - 2 - wy + 1))
-            z0 = int(rng.integers(lo, hi - wz + 1))
-            draw_prism(rho, (x0, x0 + int(wx), y0, y0 + int(wy), z0, z0 + wz),
-                       float(rng.uniform(.2, 1.)))
-    elif geometry == "dipping":
-        x0 = int(rng.integers(6, 17))
-        length = int(rng.integers(25, 43))
-        y0 = int(rng.integers(8, 43))
-        width = int(rng.integers(6, 15))
-        z_start = float(rng.uniform(4., 8.))
-        dip = float(rng.uniform(.16, .34)) * int(rng.choice([-1, 1]))
-        if dip < 0:
-            z_start = float(rng.uniform(14., 19.))
-        thickness = float(rng.uniform(1., 2.2))
-        mask = ((X >= x0) & (X < x0 + length) &
-                (Y >= y0) & (Y < y0 + width) &
-                (np.abs(Z - (z_start + dip * (X - x0))) <= thickness))
-        rho = (mask * float(rng.uniform(.2, 1.))).astype(np.float32)
-    elif geometry == "salt_dome":
-        xc, yc = float(rng.uniform(22, 42)), float(rng.uniform(22, 42))
-        r2 = (X - xc) ** 2 + (Y - yc) ** 2
-        stem_r = float(rng.uniform(4., 7.))
-        stem_top = int(rng.integers(6, 10))
-        cap_top = int(rng.integers(2, 6))
-        center = float(rng.uniform(7., 10.))
-        cap_r = (float(rng.uniform(7., 10.)) + float(rng.uniform(2., 5.)) *
-                 np.exp(-((Z - center) / float(rng.uniform(2., 3.8))) ** 2))
-        mask = ((r2 <= stem_r ** 2) & (Z >= stem_top) & (Z < 23)) | \
-               ((r2 <= cap_r ** 2) & (Z >= cap_top) & (Z <= 16))
-        rho = (mask * float(rng.uniform(.2, .8))).astype(np.float32)
-    elif geometry == "broad_intrusion":
-        rho = generate_broad_intrusion(rng, dx_m=dx_m, dz_m=dz_m)
-    else:
-        raise ValueError(f"Unknown geometry: {geometry}")
+    if temperature <= 0 or threshold < 0:
+        raise ValueError("temperature must be > 0 and threshold >= 0")
+    values = tf.abs(values) if signed else values
+    t = tf.cast(threshold, values.dtype)
+    temp = tf.cast(temperature, values.dtype)
+    raw = tf.sigmoid((values - t) / temp)
+    if subtract_baseline:
+        baseline = tf.sigmoid(-t / temp)
+        raw = tf.clip_by_value((raw - baseline) / (1.0 - baseline), 0.0, 1.0)
+    return raw
 
-    # Salt domes are negative and broad intrusions positive irrespective of
-    # --density. Other geometries follow the requested sign mode.
-    if geometry == "salt_dome":
-        rho = -np.abs(rho)
-    elif geometry == "broad_intrusion":
-        rho = np.abs(rho)
-    elif density_sign == "negative":
-        rho = -np.abs(rho)
-    elif density_sign == "signed":
-        if rng.integers(2) == 0:
-            rho = -rho
-    elif density_sign != "positive":
-        raise ValueError(f"Unsupported density sign mode: {density_sign}")
-    if rho.shape != SHAPE or not np.isfinite(rho).all() or not np.any(rho):
-        raise ValueError(f"Invalid generated density: {geometry}")
-    return rho
+
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def soft_tversky_loss(y_true, y_pred, *, threshold=0.1, temperature=0.025,
+                      alpha=0.7, beta=0.3, signed=False,
+                      subtract_baseline=False):
+    truth = tf.cast(y_true, y_pred.dtype)
+    if signed:
+        truth = tf.abs(truth)
+    target = tf.cast(truth >= threshold, y_pred.dtype)
+    pred = soft_occupancy(y_pred, threshold=threshold, temperature=temperature,
+                          signed=signed, subtract_baseline=subtract_baseline)
+    axes = tf.range(1, tf.rank(target))
+    tp = tf.reduce_sum(target * pred, axis=axes)
+    fp = tf.reduce_sum((1.0 - target) * pred, axis=axes)
+    fn = tf.reduce_sum(target * (1.0 - pred), axis=axes)
+    eps = tf.cast(1e-6, y_pred.dtype)
+    return tf.reduce_mean(1.0 - (tp + eps) / (tp + alpha * fp + beta * fn + eps))
+
+
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def vertical_profile_loss(y_true, y_pred, *, threshold=0.1,
+                          temperature=0.025, signed=False):
+    """Compare occupancy versus depth, center of mass, and vertical spread."""
+    truth = tf.cast(y_true, y_pred.dtype)
+    if signed:
+        truth = tf.abs(truth)
+    true_mask = tf.cast(truth >= threshold, y_pred.dtype)
+    pred_mask = soft_occupancy(y_pred, threshold=threshold, temperature=temperature,
+                               signed=signed, subtract_baseline=True)
+    true = tf.reduce_sum(true_mask, axis=[2, 3, 4])
+    pred = tf.reduce_sum(pred_mask, axis=[2, 3, 4])
+    true = tf.math.divide_no_nan(true, tf.reduce_sum(true, axis=1, keepdims=True))
+    pred = tf.math.divide_no_nan(pred, tf.reduce_sum(pred, axis=1, keepdims=True))
+    profile_error = tf.reduce_sum(tf.abs(true - pred), axis=1)
+    nz = tf.shape(y_pred)[1]
+    depth = tf.cast(tf.range(nz), y_pred.dtype)[None, :] / tf.maximum(
+        tf.cast(nz - 1, y_pred.dtype), 1.0)
+    tc = tf.reduce_sum(true * depth, axis=1)
+    pc = tf.reduce_sum(pred * depth, axis=1)
+    tv = tf.reduce_sum(true * tf.square(depth - tc[:, None]), axis=1)
+    pv = tf.reduce_sum(pred * tf.square(depth - pc[:, None]), axis=1)
+    return tf.reduce_mean(profile_error + 0.5 * tf.abs(tc - pc) +
+                          0.5 * tf.abs(tf.sqrt(tv + 1e-6) - tf.sqrt(pv + 1e-6)))
+
+
+@tf.keras.utils.register_keras_serializable(package="e12_gravity_migration_ml")
+def structural_gradient_loss(y_true, y_pred, cell_spacing_m=10.0):
+    if cell_spacing_m <= 0:
+        raise ValueError("cell_spacing_m must be positive")
+    truth = tf.cast(y_true, y_pred.dtype)
+    spacing = tf.cast(cell_spacing_m, y_pred.dtype)
+    losses = []
+    for axis in (1, 2, 3):
+        a = tf.experimental.numpy.diff(truth, axis=axis) / spacing
+        b = tf.experimental.numpy.diff(y_pred, axis=axis) / spacing
+        losses.append(tf.reduce_mean(tf.abs(a - b)))
+    return tf.add_n(losses) / 3.0
+
+
+def gravity_consistency_loss(density_pred, observed, forward_model: Callable,
+                             normalization=3.5):
+    """Physics loss; forward_model must be differentiable and match Gz/Gzz units."""
+    if normalization <= 0:
+        raise ValueError("normalization must be positive")
+    calculated = forward_model(density_pred)
+    observation = tf.cast(observed, calculated.dtype)
+    return tf.reduce_mean(tf.square((calculated - observation) /
+                                    tf.cast(normalization, calculated.dtype)))
+
+
+def loss_components(y_true, y_pred, *, weights: Mapping[str, float] | None = None,
+                    signed=False, threshold=0.1, temperature=0.025,
+                    subtract_tversky_baseline=None, huber_delta=0.1,
+                    cell_spacing_m=10.0, gravity_observed=None,
+                    forward_model: Callable | None = None, gravity_normalization=3.5):
+    """Compute only terms selected by nonzero weights and return their values.
+
+    Allowed keys: mse, balanced_mse, huber, balanced_huber, tversky,
+    depth, gradient, physics. ``total`` is their weighted sum.
+    """
+    weights = dict(weights or {"balanced_mse": 1.0})
+    allowed = {"mse", "balanced_mse", "huber", "balanced_huber", "tversky",
+               "depth", "gradient", "physics"}
+    unknown = set(weights) - allowed
+    if unknown:
+        raise ValueError(f"Unknown loss terms: {sorted(unknown)}")
+    if any(float(w) < 0 for w in weights.values()):
+        raise ValueError("Loss weights must be nonnegative")
+    if subtract_tversky_baseline is None:
+        subtract_tversky_baseline = signed  # historical unsigned vs signed defaults
+    result = {}
+    for name, weight in weights.items():
+        if float(weight) == 0:
+            continue
+        if name == "mse":
+            value = ordinary_mse(y_true, y_pred)
+        elif name == "balanced_mse":
+            value = balanced_density_mse(y_true, y_pred, signed=signed)
+        elif name == "huber":
+            value = huber_model_loss(y_true, y_pred, delta=huber_delta)
+        elif name == "balanced_huber":
+            value = balanced_huber_loss(y_true, y_pred, delta=huber_delta, signed=signed)
+        elif name == "tversky":
+            value = soft_tversky_loss(y_true, y_pred, threshold=threshold,
+                                      temperature=temperature, signed=signed,
+                                      subtract_baseline=subtract_tversky_baseline)
+        elif name == "depth":
+            value = vertical_profile_loss(y_true, y_pred, threshold=threshold,
+                                          temperature=temperature, signed=signed)
+        elif name == "gradient":
+            value = structural_gradient_loss(y_true, y_pred, cell_spacing_m)
+        else:
+            if gravity_observed is None or forward_model is None:
+                raise ValueError("Physics loss requires gravity_observed and forward_model")
+            value = gravity_consistency_loss(y_pred, gravity_observed, forward_model,
+                                             gravity_normalization)
+        result[name] = value
+    result["total"] = (tf.add_n([tf.cast(weights[k], y_pred.dtype) * value
+                                 for k, value in result.items()]) if result
+                       else tf.zeros((), dtype=y_pred.dtype))
+    return result
+
+
+def make_loss(*, weights=None, **options):
+    """Return a standard Keras loss callable (density-only terms).
+
+    For physics loss use loss_components within a custom training step, because
+    observed gravity is not available to a standard two-argument Keras loss.
+    """
+    if weights is not None and float(weights.get("physics", 0)) != 0:
+        raise ValueError("Physics loss requires a custom training step")
+
+    def combined_loss(y_true, y_pred):
+        return loss_components(y_true, y_pred, weights=weights, **options)["total"]
+
+    combined_loss.__name__ = "combined_density_loss"
+    return combined_loss
 
 

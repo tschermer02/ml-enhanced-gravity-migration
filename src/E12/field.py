@@ -1,77 +1,132 @@
-"""Independent E12 synthetic prediction, density metrics, Gzz residuals.
-Run: python -m src.E12.evaluate --experiment E12F --split test
+"""E12 Thunderbird: preserve actual survey XY and Gzz; strict coverage checks.
+
+Prepare 81x81 survey observation map, coverage, nearest-station distance.
+Optionally infer ONLY when all 6561 samples are within survey convex hull.
+No rescaling, nearest-neighbor extrapolation, migration, or inversion by default.
+
+  python -m src.E12.field --prepare-only
+  python -m src.E12.field --experiment E12F
 """
-import argparse, csv, json
+import argparse, json
 from pathlib import Path
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
-from .config import EXPERIMENTS
-from .physics import forward
+from scipy.interpolate import LinearNDInterpolator
+from scipy.spatial import cKDTree
+from .config import EXPERIMENTS,OBS_SHAPE,EXTENT_M,FLIGHT_HEIGHT_M
+from .physics import forward,migration,normalize_migration
 ROOT=Path(__file__).resolve().parents[2]
 
-def load_model(exp):
-    import tensorflow as tf
-    p=ROOT/'outputs/ml/training'/exp/'checkpoints/best_unet3d.keras'
-    return tf.keras.models.load_model(p,compile=False)
+def survey(path,channel=7):
+    a=np.loadtxt(path)
+    if a.ndim!=2 or a.shape[1]!=5 or not np.isfinite(a).all():raise ValueError('Expected five finite columns')
+    a=a[a[:,3]==channel]
+    if len(a)<100:raise ValueError('Missing AGG component')
+    xy=a[:,:2]; vals=a[:,4]
+    unique,inverse,counts=np.unique(xy,axis=0,return_inverse=True,return_counts=True)
+    if len(unique)!=len(xy):
+        vals=np.bincount(inverse,weights=vals)/counts
+        xy=unique
+    return xy,vals,a[:,2]
 
-def metrics(y,p,obs,sim,threshold=.1):
-    a=np.abs(y)>=threshold;b=np.abs(p)>=threshold
-    inter=np.count_nonzero(a&b);union=np.count_nonzero(a|b)
-    dice=2*inter/max(np.count_nonzero(a)+np.count_nonzero(b),1)
-    signed_inter=np.count_nonzero(a&b&(np.sign(y)==np.sign(p)))
-    # Signed IoU analogous to class-specific union for positive+negative classes.
-    signed_union=0
-    for sign in [1,-1]:
-        signed_union+=np.count_nonzero(((y*sign)>=threshold)|((p*sign)>=threshold))
-    truth_body=a
-    sign_correct=float(np.mean(np.sign(y[truth_body])==np.sign(p[truth_body]))) if a.any() else np.nan
-    return dict(iou=inter/max(union,1),dice=dice,signed_iou=signed_inter/max(signed_union,1),
-                sign_accuracy=sign_correct,density_rmse=float(np.sqrt(np.mean((p-y)**2))),
-                density_mae_inside_body=float(np.mean(abs(p[a]-y[a]))) if a.any() else np.nan,
-                gzz_rmse_e=float(np.sqrt(np.mean((sim-obs)**2))),
-                gzz_correlation=float(np.corrcoef(obs.ravel(),sim.ravel())[0,1])
-                if np.std(sim)>1e-8 and np.std(obs)>1e-8 else np.nan)
+def prepare(xy,values):
+    bounds=np.array([xy.min(0),xy.max(0)])
+    x=np.linspace(bounds[0,0],bounds[1,0],81)
+    y=np.linspace(bounds[0,1],bounds[1,1],81)
+    X,Y=np.meshgrid(x,y)
+    targets=np.column_stack([X.ravel(),Y.ravel()])
+    interpolated=LinearNDInterpolator(xy,values,fill_value=np.nan)(targets).reshape(OBS_SHAPE)
+    valid=np.isfinite(interpolated)
+    distance=cKDTree(xy).query(targets)[0].reshape(OBS_SHAPE)
+    return dict(gravity=interpolated.astype(np.float32),
+                coverage_mask=valid,nearest_station_distance_m=distance.astype(np.float32),
+                x_coordinates_m=x,y_coordinates_m=y,
+                bounds_m=bounds,
+                actual_dx_m=float(x[1]-x[0]),actual_dy_m=float(y[1]-y[0]))
+
+def map_plots(src,xy,values,out):
+    X,Y=np.meshgrid(src['x_coordinates_m']/1000,src['y_coordinates_m']/1000)
+    limit=max(float(np.percentile(np.abs(values),99)),1.e-6)
+    fig,ax=plt.subplots(1,2,figsize=(15,6),constrained_layout=True)
+    a=ax[0].scatter(xy[:,0]/1000,xy[:,1]/1000,c=values,s=2,vmin=-limit,vmax=limit,cmap='RdBu_r',rasterized=True)
+    b=ax[1].pcolormesh(X,Y,np.ma.masked_invalid(src['gravity']),vmin=-limit,vmax=limit,cmap='RdBu_r',shading='nearest')
+    for axy,title in zip(ax,('Original station measurements','81×81 linear resampling (no extrapolation)')):
+        axy.set(title=title,xlabel='X (km)',ylabel='Y (km)');axy.set_aspect('equal')
+    fig.colorbar(a,ax=ax[0],label='Gzz (assumed Eotvos)')
+    fig.colorbar(b,ax=ax[1],label='Gzz (assumed Eotvos)')
+    fig.savefig(out/'observed_Gzz_original_vs_81.png',dpi=220);plt.close(fig)
+    fig,ax=plt.subplots(1,2,figsize=(14,6),constrained_layout=True)
+    ax[0].pcolormesh(X,Y,src['coverage_mask'].astype(float),vmin=0,vmax=1,cmap='Greens',shading='nearest')
+    im=ax[1].pcolormesh(X,Y,np.ma.masked_where(~src['coverage_mask'],src['nearest_station_distance_m']),cmap='viridis',shading='nearest')
+    for axy,title in zip(ax,('Inside survey convex hull','Nearest measured station distance')):
+        axy.set(title=title,xlabel='X (km)',ylabel='Y (km)');axy.set_aspect('equal')
+    fig.colorbar(im,ax=ax[1],label='Meters')
+    fig.savefig(out/'interpolation_coverage_map.png',dpi=220);plt.close(fig)
+
+def infer(g,exp,height,out):
+    import tensorflow as tf
+    from .visualize import output_figures
+    if not g['coverage_mask'].all():
+        count=np.count_nonzero(~g['coverage_mask'])
+        raise RuntimeError(f'{count} receiver nodes outside convex hull; refusing to extrapolate. '
+                           'Field preprocessing and coverage maps are saved; no inference run. '
+                           'Do not replace NaNs with zeros or nearest values without explicit study design.')
+    dx=float(g['actual_dx_m']);dy=float(g['actual_dy_m'])
+    if abs(dx-100)>1 or abs(dy-100)>1:
+        raise RuntimeError(f'Actual receiver spacings ({dx:.2f}, {dy:.2f}) m differ from E12 (100,100) '
+                           'by >1m; inference would distort physical scale; refusing')
+    p=ROOT/'outputs/ml/training'/exp/'checkpoints/best_unet3d.keras'
+    model=tf.keras.models.load_model(p,compile=False)
+    mig=migration(g['gravity'],height)
+    normalized,scale=normalize_migration(mig)
+    pred=model(normalized[None,...,None],training=False).numpy()[0,...,0]
+    modeled=forward(pred,height)
+    res=modeled-g['gravity']
+    np.savez_compressed(out/'Thunderbird_E12_prediction.npz',density=pred,
+         migration=mig,migration_input=normalized,migration_scale=scale,
+         modeled_gravity=modeled,residual=res,observed=g['gravity'],
+         x_coordinates_m=g['x_coordinates_m'],y_coordinates_m=g['y_coordinates_m'],
+         observation_height_m=height)
+    output_figures(out,g['gravity'],modeled,mig,normalized,pred)
+    print('Observed vs forward modeled RMSE E:',np.sqrt(np.mean(res**2)))
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--experiment',required=True,choices=EXPERIMENTS)
-    p.add_argument('--split',choices=('validation','test'),default='test')
-    p.add_argument('--limit',type=int,default=None)
-    p.add_argument('--overwrite',action='store_true')
+    p.add_argument('--input',type=Path,default=Path('src/data/Thunderbird_gravity_data/Tbird_gravity.dat'))
+    p.add_argument('--experiment',choices=EXPERIMENTS,default=None)
+    p.add_argument('--prepare-only',action='store_true')
+    p.add_argument('--height',type=float,default=FLIGHT_HEIGHT_M)
+    p.add_argument('--channel',type=int,default=7)
+    p.add_argument('--output-root',type=Path,default=Path('outputs/ml/field/Thunderbird_E12'))
     args=p.parse_args()
-    data_root=ROOT/'outputs/ml/training'/EXPERIMENTS[args.experiment].dataset/'data'/args.split
-    paths=sorted(data_root.rglob('*.npz'))
-    if args.limit:paths=paths[:args.limit]
-    if not paths:raise FileNotFoundError(data_root)
-    output=ROOT/'outputs/ml/predict'/args.experiment
-    dest=output/f'{args.split}_metrics.csv'
-    if dest.exists() and not args.overwrite:raise FileExistsError(dest)
-    output.mkdir(parents=True,exist_ok=True)
-    model=load_model(args.experiment)
-    rows=[]
-    for n,path in enumerate(paths):
-        with np.load(path) as d:
-            x=np.asarray(d['migration_input'],np.float32)
-            y=np.asarray(d['density'],np.float32)
-            obs=np.asarray(d['gravity'],np.float32)
-            h=float(d['observation_height_m'])
-            geom=str(d['geometry'])
-        pred=np.asarray(model(x[None,...,None],training=False).numpy()[0,...,0])
-        sim=forward(pred,h)
-        row=dict(filename=str(path.relative_to(data_root)),geometry=geom,
-                 noise_percent=float(path.parent.name.removeprefix('noise_')),
-                 observation_height_m=h,**metrics(y,pred,obs,sim))
-        rows.append(row)
-        if (n+1)%25==0 or n+1==len(paths):print(f'{args.experiment}: {n+1}/{len(paths)}',flush=True)
-    with dest.open('w',newline='') as f:
-        w=csv.DictWriter(f,fieldnames=rows[0].keys());w.writeheader();w.writerows(rows)
-    summary=dict(experiment=args.experiment,dataset=EXPERIMENTS[args.experiment].dataset,
-                 n_samples=len(rows),overall={},by_geometry={})
-    fields=[k for k in rows[0] if k not in ('filename','geometry','noise_percent','observation_height_m')]
-    def summarize(items):return {k:float(np.nanmean([r[k] for r in items])) for k in fields}
-    summary['overall']=summarize(rows)
-    summary['by_geometry']={g:summarize([r for r in rows if r['geometry']==g]) for g in sorted(set(r['geometry'] for r in rows))}
-    result=output/f'{args.split}_summary.json'
-    result.write_text(json.dumps(summary,indent=2))
-    print(json.dumps(summary,indent=2))
-    print('Saved',dest,result)
+    if args.height<0:raise ValueError('Flight height must be nonnegative')
+    source=args.input if args.input.is_absolute() else ROOT/args.input
+    out=args.output_root if args.output_root.is_absolute() else ROOT/args.output_root
+    out.mkdir(parents=True,exist_ok=True)
+    xy,values,z=survey(source,args.channel)
+    grid=prepare(xy,values)
+    np.savez_compressed(out/'Thunderbird_Gzz_81x81.npz',**grid)
+    map_plots(grid,xy,values,out)
+    meta=dict(source=str(source),channel=args.channel,channel_name='Gzz (assumed)',
+        unit='Eotvos (assumed)',n_unique_stations=len(xy),
+        original_bounds_m=grid['bounds_m'].tolist(),
+        original_width_m=float(np.ptp(xy[:,0])),original_height_m=float(np.ptp(xy[:,1])),
+        observation_grid=[81,81],actual_receiver_spacing_m=[grid['actual_dx_m'],grid['actual_dy_m']],
+        stretch_factors=[1.,1.],coverage_fraction=float(grid['coverage_mask'].mean()),
+        unsupported_nodes=int(np.count_nonzero(~grid['coverage_mask'])),
+        nearest_station_distance_max_inside_m=float(np.max(grid['nearest_station_distance_m'][grid['coverage_mask']])),
+        original_z_range=[float(z.min()),float(z.max())],
+        nominal_flight_height_m=args.height,
+        height_source='Jorgensen and Zhdanov 2021, Minerals 11(4), 366, section 6.2: 100m nominal; not demonstrated constant above common datum',
+        paper_line_spacing_m=250.,
+        interpolation='linear within original convex hull; no extrapolation',
+        physical_model_extent_m=[8000,8000,1000])
+    (out/'preprocessing_metadata.json').write_text(json.dumps(meta,indent=2))
+    print(json.dumps(meta,indent=2),flush=True)
+    if args.experiment and not args.prepare_only:
+        dest=out/args.experiment;dest.mkdir(parents=True,exist_ok=True)
+        infer(grid,args.experiment,args.height,dest)
+    else:print('Prepared observations only. No migration or inversion.')
 if __name__=='__main__':main()
