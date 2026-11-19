@@ -1,0 +1,191 @@
+{
+  "split": "test",
+  "reference": "observed",
+  "unit": "E",
+  "overall": {
+    "n_samples": 480,
+    "mean_rmse_e": 6.475045308694968,
+    "mean_mae_e": 4.351955945199182,
+    "mean_bias_e": 0.013155802581749866,
+    "mean_correlation": 0.814024604880663
+  },
+  "by_geometry": {
+    "broad_intrusion": {
+      "n_samples": 96,
+      "mean_rmse_e": 6.583289860928343,
+      "mean_mae_e": 4.470600501834159,
+      "mean_bias_e": 0.0824485113322197,
+      "mean_correlation": 0.7948602721606625
+    },
+    "compact": {
+      "n_samples": 96,
+      "mean_rmse_e": 4.971665787309669,
+      "mean_mae_e": 3.2778823770122933,
+      "mean_bias_e": 0.00406803208635657,
+      "mean_correlation": 0.7792300558291284
+    },
+    "dipping": {
+      "n_samples": 96,
+      "mean_rmse_e": 4.071290087090692,
+      "mean_mae_e": 2.7592922802973803,
+      "mean_bias_e": -0.004642612935583083,
+      "mean_correlation": 0.8286499464701272
+    },
+    "multiple": {
+      "n_samples": 96,
+      "mean_rmse_e": 5.959335461203732,
+      "mean_mae_e": 4.0090161363515495,
+      "mean_bias_e": 0.011215869477422638,
+      "mean_correlation": 0.7687772252233435
+    },
+    "salt_dome": {
+      "n_samples": 96,
+      "mean_rmse_e": 10.789645346942402,
+      "mean_mae_e": 7.242988430500529,
+      "mean_bias_e": -0.027310787051666497,
+      "mean_correlation": 0.8986055247200527
+    }
+  },
+  "by_geometry_noise_height": {
+    "broad_intrusion|noise_0|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 3.349657748240757,
+      "mean_mae_e": 0.8634330061065936,
+      "mean_bias_e": 0.2542671351527792,
+      "mean_correlation": 0.9806053673729013
+    },
+    "broad_intrusion|noise_5|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 5.4700904872825475,
+      "mean_mae_e": 3.7427740188196594,
+      "mean_bias_e": 0.06297111432896114,
+      "mean_correlation": 0.8597538888772528
+    },
+    "broad_intrusion|noise_10|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 7.892351411027794,
+      "mean_mae_e": 5.823555137609816,
+      "mean_bias_e": 0.007337178934265128,
+      "mean_correlation": 0.7035250125911002
+    },
+    "broad_intrusion|noise_15|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 9.62105979716227,
+      "mean_mae_e": 7.4526398448005695,
+      "mean_bias_e": 0.005218616912873363,
+      "mean_correlation": 0.6355568198013957
+    },
+    "compact|noise_0|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 2.1985185855061333,
+      "mean_mae_e": 0.4908638945997507,
+      "mean_bias_e": -0.006809559569553788,
+      "mean_correlation": 0.9923679863945015
+    },
+    "compact|noise_5|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 3.1782700487724695,
+      "mean_mae_e": 1.8258488050708677,
+      "mean_bias_e": 0.030354312108958087,
+      "mean_correlation": 0.8829067497762821
+    },
+    "compact|noise_10|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 7.197973092211771,
+      "mean_mae_e": 5.266247506277055,
+      "mean_bias_e": 0.03630968813106126,
+      "mean_correlation": 0.6978935481653054
+    },
+    "compact|noise_15|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 7.311901422748302,
+      "mean_mae_e": 5.528569302101498,
+      "mean_bias_e": -0.043582312325039285,
+      "mean_correlation": 0.543751938980424
+    },
+    "dipping|noise_0|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 2.414755551296277,
+      "mean_mae_e": 0.7855282747773028,
+      "mean_bias_e": 0.033603964259035994,
+      "mean_correlation": 0.972382733006158
+    },
+    "dipping|noise_5|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 2.6354297506029805,
+      "mean_mae_e": 1.6352230511139239,
+      "mean_bias_e": -0.03891553641258889,
+      "mean_correlation": 0.9275125956237361
+    },
+    "dipping|noise_10|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 4.637727096056474,
+      "mean_mae_e": 3.537946201877554,
+      "mean_bias_e": 0.00348521336010138,
+      "mean_correlation": 0.763412614531117
+    },
+    "dipping|noise_15|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 6.597247950407038,
+      "mean_mae_e": 5.078471593420743,
+      "mean_bias_e": -0.016744092948880816,
+      "mean_correlation": 0.6512918427194987
+    },
+    "multiple|noise_0|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 3.603950336207346,
+      "mean_mae_e": 0.9628731234089751,
+      "mean_bias_e": 0.02226507327763824,
+      "mean_correlation": 0.9651442820527903
+    },
+    "multiple|noise_5|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 3.4488720264439805,
+      "mean_mae_e": 2.189823444925849,
+      "mean_bias_e": 0.007435354869064131,
+      "mean_correlation": 0.8680799049605756
+    },
+    "multiple|noise_10|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 7.124457057470764,
+      "mean_mae_e": 5.351023606299051,
+      "mean_bias_e": -0.020487462008663082,
+      "mean_correlation": 0.6834690287621892
+    },
+    "multiple|noise_15|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 9.660062424692837,
+      "mean_mae_e": 7.532344370772322,
+      "mean_bias_e": 0.03565051177165126,
+      "mean_correlation": 0.5584156851178195
+    },
+    "salt_dome|noise_0|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 6.283515492793062,
+      "mean_mae_e": 2.233428134794522,
+      "mean_bias_e": -0.19488924994968615,
+      "mean_correlation": 0.9968421850216647
+    },
+    "salt_dome|noise_5|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 7.827241459136246,
+      "mean_mae_e": 5.075717456903771,
+      "mean_bias_e": -0.02109290624192901,
+      "mean_correlation": 0.9612367106078749
+    },
+    "salt_dome|noise_10|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 12.851326700397019,
+      "mean_mae_e": 9.460444857562642,
+      "mean_bias_e": 0.00754910243583475,
+      "mean_correlation": 0.8679349234276676
+    },
+    "salt_dome|noise_15|height_0m": {
+      "n_samples": 24,
+      "mean_rmse_e": 16.196497735443277,
+      "mean_mae_e": 12.202363272741183,
+      "mean_bias_e": 0.09918990554911444,
+      "mean_correlation": 0.7684082798230046
+    }
+  }
+}

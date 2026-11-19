@@ -1,0 +1,49 @@
+{
+  "name": "D09",
+  "geometries": [
+    "compact",
+    "multiple",
+    "dipping",
+    "salt_dome"
+  ],
+  "train": 2400,
+  "validation": 240,
+  "test": 480,
+  "component": "gzz",
+  "noise": [
+    0.0,
+    5.0,
+    10.0,
+    15.0
+  ],
+  "paired_noise": false,
+  "density": "signed",
+  "min_bodies": 1,
+  "max_bodies": 3,
+  "gap_cells": 2,
+  "seed": 42,
+  "shape": [
+    24,
+    64,
+    64
+  ],
+  "cell_size_m": 10.0,
+  "grid": "e11",
+  "dx_m": 125.0,
+  "dy_m": 125.0,
+  "dz_m": 41.666666666666664,
+  "observation_heights_m": [
+    0.0,
+    50.0,
+    100.0,
+    150.0,
+    200.0
+  ],
+  "model_extent_m": [
+    8000.0,
+    8000.0,
+    1000.0
+  ],
+  "noise_definition": "Gaussian std as percent of max abs clean response",
+  "layout": "split/geometry[/noise_NN]/sample"
+}

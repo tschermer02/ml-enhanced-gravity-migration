@@ -1,0 +1,25 @@
+{
+  "run_name": "E11D",
+  "dataset_name": "D10",
+  "model_path": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/training/E11D/checkpoints/best_unet3d.keras",
+  "data_root": "/uufs/chpc.utah.edu/common/home/u1623542/ml-enhanced-gravity-migration/outputs/ml/training/D10/data",
+  "split": "test",
+  "sample_count": 480,
+  "grid": "e11",
+  "model_extent_m": [
+    8000.0,
+    8000.0,
+    1000.0
+  ],
+  "dx_m": 125.0,
+  "dy_m": 125.0,
+  "dz_m": 41.666666666666664,
+  "observation_heights_m": [
+    0.0,
+    50.0,
+    100.0,
+    150.0,
+    200.0
+  ],
+  "normalization": "stored_migration_input"
+}
