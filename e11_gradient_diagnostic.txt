@@ -1,0 +1,100 @@
+
+=================================================================
+GEOMETRY: broad_intrusion
+=================================================================
+2026-11-19 11:19:57.375298: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-11-19 11:19:57.447307: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-11-19 11:19:59.796503: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1795112401.471791 1707134 gpu_device.cc:2020] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 9611 MB memory:  -> device: 0, name: NVIDIA GeForce RTX 2080 Ti, pci bus id: 0000:18:00.0, compute capability: 7.5
+2026-11-19 11:20:02.873206: I external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:473] Loaded cuDNN version 91002
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+W0000 00:00:1795112406.383834 1707134 loop_optimizer.cc:934] Skipping loop optimization for Merge node with control input: assert_equal_5/Assert/AssertGuard/branch_executed/_9
+
+E11D | outputs/ml/training/D10/data/test/broad_intrusion/noise_00/sample_000016.npz
+  supervised loss = 0.03106307
+  raw physics loss = 0.0008400503
+  weighted physics loss = 0 (weight 0)
+  true-body mean truth / prediction = +0.30862 / +0.45060 g/cm^3
+  predicted positive fraction in true body = 100.0%
+  output gradient L2: supervised = 0.007074097, weighted physics = 0
+  weighted physics / supervised output-gradient ratio = 0
+  output-gradient cosine not applicable (physics disabled)
+  body mean descent direction: supervised = -2.94036e-06, weighted physics = -0
+  output-head bias descent: supervised = -2.06142, weighted physics = -0
+
+E11E | outputs/ml/training/D10/data/test/broad_intrusion/noise_00/sample_000016.npz
+  supervised loss = 0.03972627
+  raw physics loss = 0.005133762
+  weighted physics loss = 5.133761e-05 (weight 0.01)
+  true-body mean truth / prediction = +0.30862 / -0.13786 g/cm^3
+  predicted positive fraction in true body = 0.0%
+  output gradient L2: supervised = 0.007457615, weighted physics = 0.001669584
+  weighted physics / supervised output-gradient ratio = 0.223876
+  output-gradient cosine (supervised vs physics) = +0.0234
+  body mean descent direction: supervised = -8.76369e-06, weighted physics = +9.74501e-08
+  output-head bias descent: supervised = +2.1377, weighted physics = +0.0140127
+
+=================================================================
+GEOMETRY: salt_dome
+=================================================================
+
+E11D | outputs/ml/training/D10/data/test/salt_dome/noise_00/sample_000002.npz
+  supervised loss = 0.008455332
+  raw physics loss = 0.000191621
+  weighted physics loss = 0 (weight 0)
+  true-body mean truth / prediction = -0.53294 / -0.49432 g/cm^3
+  predicted positive fraction in true body = 2.8%
+  output gradient L2: supervised = 0.004025191, weighted physics = 0
+  weighted physics / supervised output-gradient ratio = 0
+  output-gradient cosine not applicable (physics disabled)
+  body mean descent direction: supervised = -2.67543e-06, weighted physics = -0
+  output-head bias descent: supervised = -1.15832, weighted physics = -0
+
+E11E | outputs/ml/training/D10/data/test/salt_dome/noise_00/sample_000002.npz
+  supervised loss = 0.01078806
+  raw physics loss = 0.0006741265
+  weighted physics loss = 6.741265e-06 (weight 0.01)
+  true-body mean truth / prediction = -0.53294 / -0.47418 g/cm^3
+  predicted positive fraction in true body = 0.0%
+  output gradient L2: supervised = 0.004195972, weighted physics = 0.0006071299
+  weighted physics / supervised output-gradient ratio = 0.144693
+  output-gradient cosine (supervised vs physics) = -0.0141
+  body mean descent direction: supervised = -2.8976e-06, weighted physics = -3.60412e-08
+  output-head bias descent: supervised = +1.19618, weighted physics = -0.00250395
+
+=================================================================
+GEOMETRY: compact
+=================================================================
+
+E11D | outputs/ml/training/D10/data/test/compact/noise_00/sample_000019.npz
+  supervised loss = 0.07728109
+  raw physics loss = 0.001571634
+  weighted physics loss = 0 (weight 0)
+  true-body mean truth / prediction = -0.22975 / -0.63922 g/cm^3
+  predicted positive fraction in true body = 0.0%
+  output gradient L2: supervised = 0.03091146, weighted physics = 0
+  weighted physics / supervised output-gradient ratio = 0
+  output-gradient cosine not applicable (physics disabled)
+  body mean descent direction: supervised = +0.000173611, weighted physics = -0
+  output-head bias descent: supervised = -9.26423, weighted physics = +0
+
+E11E | outputs/ml/training/D10/data/test/compact/noise_00/sample_000019.npz
+  supervised loss = 0.07144727
+  raw physics loss = 0.001802009
+  weighted physics loss = 1.802009e-05 (weight 0.01)
+  true-body mean truth / prediction = -0.22975 / -0.65975 g/cm^3
+  predicted positive fraction in true body = 0.0%
+  output gradient L2: supervised = 0.03668776, weighted physics = 2.077314e-05
+  weighted physics / supervised output-gradient ratio = 0.000566215
+  output-gradient cosine (supervised vs physics) = +0.0232
+  body mean descent direction: supervised = +0.000173457, weighted physics = +1.39099e-07
+  output-head bias descent: supervised = +11.1026, weighted physics = +0.000107611
+
+Done. Models and data were not modified.

@@ -1,0 +1,20 @@
+2026-11-19 11:23:26.877175: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-11-19 11:23:26.949991: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-11-19 11:23:33.051526: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1795112616.958888 1707336 gpu_device.cc:2020] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 9611 MB memory:  -> device: 0, name: NVIDIA GeForce RTX 2080 Ti, pci bus id: 0000:18:00.0, compute capability: 7.5
+2026-11-19 11:23:38.299650: I external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:473] Loaded cuDNN version 91002
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+WARNING:tensorflow:You are casting an input of type complex64 to an incompatible dtype float32.  This will discard the imaginary part and may not be what you intended.
+W0000 00:00:1795112620.625416 1707336 loop_optimizer.cc:934] Skipping loop optimization for Merge node with control input: assert_positive_1/assert_less/Assert/AssertGuard/branch_executed/_57
+Sample: outputs/ml/training/D10/data/test/broad_intrusion/noise_00/sample_000016.npz
+True-body mean truth: 0.3086204528808594
+True-body mean prediction: -0.13786469399929047
+
+Directional derivatives toward true density:
+Balanced Huber      : -1.02900947e-03
+Tversky             : +1.21389015e-03
+Vertical profile    : +1.79958544e-04
+Physics             : -4.72191005e-06
