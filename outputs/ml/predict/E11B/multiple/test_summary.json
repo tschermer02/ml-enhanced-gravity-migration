@@ -1,0 +1,1668 @@
+{
+  "geometry": "multiple",
+  "overall": {
+    "sample_count": 120,
+    "empty_prediction_count": 0,
+    "metrics": {
+      "density_mae": {
+        "mean": 0.0043264414366882276,
+        "std": 0.0031188461793811616,
+        "valid_count": 120
+      },
+      "density_rmse": {
+        "mean": 0.0443622755361291,
+        "std": 0.01967907342717343,
+        "valid_count": 120
+      },
+      "density_mae_inside_true_body": {
+        "mean": 0.3256652093813134,
+        "std": 0.13617281421838884,
+        "valid_count": 120
+      },
+      "body_iou": {
+        "mean": 0.5333722857541189,
+        "std": 0.16839462821626258,
+        "valid_count": 120
+      },
+      "body_dice": {
+        "mean": 0.6785179820058597,
+        "std": 0.15865753254191123,
+        "valid_count": 120
+      },
+      "signed_body_iou": {
+        "mean": 0.5332653798356896,
+        "std": 0.16840138966766008,
+        "valid_count": 120
+      },
+      "true_body_sign_accuracy": {
+        "mean": 0.8518672821112484,
+        "std": 0.20785621309328178,
+        "valid_count": 120
+      },
+      "body_volume_ratio": {
+        "mean": 0.9418697291589769,
+        "std": 0.4706455173530681,
+        "valid_count": 120
+      },
+      "top_depth_error_m": {
+        "mean": 46.18055555555555,
+        "std": 46.209264259399994,
+        "valid_count": 120
+      },
+      "bottom_depth_error_m": {
+        "mean": 100.0,
+        "std": 107.50215329454088,
+        "valid_count": 120
+      },
+      "thickness_error_m": {
+        "mean": 124.65277777777777,
+        "std": 117.0499449889387,
+        "valid_count": 120
+      }
+    }
+  },
+  "by_geometry_and_noise": {
+    "unknown": {
+      "noise_0": {
+        "sample_count": 120,
+        "empty_prediction_count": 0,
+        "metrics": {
+          "density_mae": {
+            "mean": 0.0043264414366882276,
+            "std": 0.0031188461793811616,
+            "valid_count": 120
+          },
+          "density_rmse": {
+            "mean": 0.0443622755361291,
+            "std": 0.01967907342717343,
+            "valid_count": 120
+          },
+          "density_mae_inside_true_body": {
+            "mean": 0.3256652093813134,
+            "std": 0.13617281421838884,
+            "valid_count": 120
+          },
+          "body_iou": {
+            "mean": 0.5333722857541189,
+            "std": 0.16839462821626258,
+            "valid_count": 120
+          },
+          "body_dice": {
+            "mean": 0.6785179820058597,
+            "std": 0.15865753254191123,
+            "valid_count": 120
+          },
+          "signed_body_iou": {
+            "mean": 0.5332653798356896,
+            "std": 0.16840138966766008,
+            "valid_count": 120
+          },
+          "true_body_sign_accuracy": {
+            "mean": 0.8518672821112484,
+            "std": 0.20785621309328178,
+            "valid_count": 120
+          },
+          "body_volume_ratio": {
+            "mean": 0.9418697291589769,
+            "std": 0.4706455173530681,
+            "valid_count": 120
+          },
+          "top_depth_error_m": {
+            "mean": 46.18055555555555,
+            "std": 46.209264259399994,
+            "valid_count": 120
+          },
+          "bottom_depth_error_m": {
+            "mean": 100.0,
+            "std": 107.50215329454088,
+            "valid_count": 120
+          },
+          "thickness_error_m": {
+            "mean": 124.65277777777777,
+            "std": 117.0499449889387,
+            "valid_count": 120
+          }
+        }
+      }
+    }
+  },
+  "by_observation_height": {
+    "height_0_m": {
+      "sample_count": 24,
+      "empty_prediction_count": 0,
+      "metrics": {
+        "density_mae": {
+          "mean": 0.003844909284632676,
+          "std": 0.0031977608741725356,
+          "valid_count": 24
+        },
+        "density_rmse": {
+          "mean": 0.04116167888438679,
+          "std": 0.019014622351196296,
+          "valid_count": 24
+        },
+        "density_mae_inside_true_body": {
+          "mean": 0.346405890132573,
+          "std": 0.15689445108919445,
+          "valid_count": 24
+        },
+        "body_iou": {
+          "mean": 0.5177669114872687,
+          "std": 0.15753960483019866,
+          "valid_count": 24
+        },
+        "body_dice": {
+          "mean": 0.6675526379225465,
+          "std": 0.1433965669139418,
+          "valid_count": 24
+        },
+        "signed_body_iou": {
+          "mean": 0.5176405965451458,
+          "std": 0.15752144863655135,
+          "valid_count": 24
+        },
+        "true_body_sign_accuracy": {
+          "mean": 0.8797010735565177,
+          "std": 0.17692941586332042,
+          "valid_count": 24
+        },
+        "body_volume_ratio": {
+          "mean": 0.8563556173048322,
+          "std": 0.4357374009956792,
+          "valid_count": 24
+        },
+        "top_depth_error_m": {
+          "mean": 39.93055555555555,
+          "std": 42.490410592084785,
+          "valid_count": 24
+        },
+        "bottom_depth_error_m": {
+          "mean": 145.83333333333334,
+          "std": 165.79633869879612,
+          "valid_count": 24
+        },
+        "thickness_error_m": {
+          "mean": 144.09722222222223,
+          "std": 177.99161130791433,
+          "valid_count": 24
+        }
+      }
+    },
+    "height_50_m": {
+      "sample_count": 24,
+      "empty_prediction_count": 0,
+      "metrics": {
+        "density_mae": {
+          "mean": 0.003577664944736381,
+          "std": 0.002439799219804473,
+          "valid_count": 24
+        },
+        "density_rmse": {
+          "mean": 0.039862084606151045,
+          "std": 0.01648336340033071,
+          "valid_count": 24
+        },
+        "density_mae_inside_true_body": {
+          "mean": 0.2876697472853071,
+          "std": 0.124347530498325,
+          "valid_count": 24
+        },
+        "body_iou": {
+          "mean": 0.5893685542371228,
+          "std": 0.14807331174078883,
+          "valid_count": 24
+        },
+        "body_dice": {
+          "mean": 0.7295959190503142,
+          "std": 0.1313623024939849,
+          "valid_count": 24
+        },
+        "signed_body_iou": {
+          "mean": 0.5893377356966888,
+          "std": 0.14808120962061844,
+          "valid_count": 24
+        },
+        "true_body_sign_accuracy": {
+          "mean": 0.8428539893991482,
+          "std": 0.20516986886714705,
+          "valid_count": 24
+        },
+        "body_volume_ratio": {
+          "mean": 0.9572022135135109,
+          "std": 0.34795306927611824,
+          "valid_count": 24
+        },
+        "top_depth_error_m": {
+          "mean": 43.40277777777777,
+          "std": 30.616652931507634,
+          "valid_count": 24
+        },
+        "bottom_depth_error_m": {
+          "mean": 90.27777777777779,
+          "std": 103.23658852304519,
+          "valid_count": 24
+        },
+        "thickness_error_m": {
+          "mean": 123.2638888888889,
+          "std": 95.0748720145352,
+          "valid_count": 24
+        }
+      }
+    },
+    "height_100_m": {
+      "sample_count": 24,
+      "empty_prediction_count": 0,
+      "metrics": {
+        "density_mae": {
+          "mean": 0.00467676069450763,
+          "std": 0.0030475361160820875,
+          "valid_count": 24
+        },
+        "density_rmse": {
+          "mean": 0.04638144541122637,
+          "std": 0.020194422966360846,
+          "valid_count": 24
+        },
+        "density_mae_inside_true_body": {
+          "mean": 0.31581386834595315,
+          "std": 0.11672166796285274,
+          "valid_count": 24
+        },
+        "body_iou": {
+          "mean": 0.5850371425033652,
+          "std": 0.16002476106008176,
+          "valid_count": 24
+        },
+        "body_dice": {
+          "mean": 0.7242089117164884,
+          "std": 0.14037058370010708,
+          "valid_count": 24
+        },
+        "signed_body_iou": {
+          "mean": 0.5849986691269418,
+          "std": 0.15998015021111292,
+          "valid_count": 24
+        },
+        "true_body_sign_accuracy": {
+          "mean": 0.9210962363706378,
+          "std": 0.1516794235490287,
+          "valid_count": 24
+        },
+        "body_volume_ratio": {
+          "mean": 0.9228235390348414,
+          "std": 0.33857588392026317,
+          "valid_count": 24
+        },
+        "top_depth_error_m": {
+          "mean": 43.40277777777777,
+          "std": 66.4048315934211,
+          "valid_count": 24
+        },
+        "bottom_depth_error_m": {
+          "mean": 83.33333333333334,
+          "std": 64.7734656464501,
+          "valid_count": 24
+        },
+        "thickness_error_m": {
+          "mean": 109.375,
+          "std": 109.4576407371397,
+          "valid_count": 24
+        }
+      }
+    },
+    "height_150_m": {
+      "sample_count": 24,
+      "empty_prediction_count": 0,
+      "metrics": {
+        "density_mae": {
+          "mean": 0.004945678068070594,
+          "std": 0.004072318890522519,
+          "valid_count": 24
+        },
+        "density_rmse": {
+          "mean": 0.04582819297122042,
+          "std": 0.024917776126593846,
+          "valid_count": 24
+        },
+        "density_mae_inside_true_body": {
+          "mean": 0.31649014935120073,
+          "std": 0.13652884406384938,
+          "valid_count": 24
+        },
+        "body_iou": {
+          "mean": 0.5133276716955125,
+          "std": 0.1606987828912679,
+          "valid_count": 24
+        },
+        "body_dice": {
+          "mean": 0.6628458644684809,
+          "std": 0.14793510586441921,
+          "valid_count": 24
+        },
+        "signed_body_iou": {
+          "mean": 0.5131250709736688,
+          "std": 0.1606837012973534,
+          "valid_count": 24
+        },
+        "true_body_sign_accuracy": {
+          "mean": 0.8152389199184639,
+          "std": 0.2403748260930649,
+          "valid_count": 24
+        },
+        "body_volume_ratio": {
+          "mean": 0.7651697981205493,
+          "std": 0.2922269202551346,
+          "valid_count": 24
+        },
+        "top_depth_error_m": {
+          "mean": 39.93055555555555,
+          "std": 35.024723961513914,
+          "valid_count": 24
+        },
+        "bottom_depth_error_m": {
+          "mean": 104.16666666666664,
+          "std": 89.20300401850784,
+          "valid_count": 24
+        },
+        "thickness_error_m": {
+          "mean": 126.7361111111111,
+          "std": 77.46635943514967,
+          "valid_count": 24
+        }
+      }
+    },
+    "height_200_m": {
+      "sample_count": 24,
+      "empty_prediction_count": 0,
+      "metrics": {
+        "density_mae": {
+          "mean": 0.004587194191493851,
+          "std": 0.0022846763559369355,
+          "valid_count": 24
+        },
+        "density_rmse": {
+          "mean": 0.04857797580766088,
+          "std": 0.014827967141564272,
+          "valid_count": 24
+        },
+        "density_mae_inside_true_body": {
+          "mean": 0.36194639179153315,
+          "std": 0.1303899562158715,
+          "valid_count": 24
+        },
+        "body_iou": {
+          "mean": 0.4613611488473249,
+          "std": 0.1788058744592543,
+          "valid_count": 24
+        },
+        "body_dice": {
+          "mean": 0.6083865768714684,
+          "std": 0.1909786694663904,
+          "valid_count": 24
+        },
+        "signed_body_iou": {
+          "mean": 0.46122482683600285,
+          "std": 0.17883271227439126,
+          "valid_count": 24
+        },
+        "true_body_sign_accuracy": {
+          "mean": 0.8004461913114748,
+          "std": 0.22847594134988958,
+          "valid_count": 24
+        },
+        "body_volume_ratio": {
+          "mean": 1.2077974778211515,
+          "std": 0.6976506668705399,
+          "valid_count": 24
+        },
+        "top_depth_error_m": {
+          "mean": 64.23611111111111,
+          "std": 43.33327768871071,
+          "valid_count": 24
+        },
+        "bottom_depth_error_m": {
+          "mean": 76.3888888888889,
+          "std": 66.60877115712111,
+          "valid_count": 24
+        },
+        "thickness_error_m": {
+          "mean": 119.79166666666669,
+          "std": 95.70681564123417,
+          "valid_count": 24
+        }
+      }
+    }
+  },
+  "by_geometry_noise_and_height": {
+    "multiple": {
+      "noise_0": {
+        "height_0_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.005385069665633118,
+              "std": 0.004267784941772276,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04673365155070424,
+              "std": 0.02238546698741406,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3362609530412361,
+              "std": 0.1315524463406727,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5302114277015877,
+              "std": 0.12691980159816296,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6838047645663616,
+              "std": 0.11094171077356349,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5302114277015877,
+              "std": 0.12691980159816296,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.8079924177722105,
+              "std": 0.18292218393774437,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.0458229219606594,
+              "std": 0.5141316535205219,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 41.666666666666664,
+              "std": 63.64688465216445,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 104.16666666666664,
+              "std": 39.892796156514095,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 104.16666666666667,
+              "std": 71.15938031916389,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_50_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.003696316155319129,
+              "std": 0.0018699793320130895,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.041105353395161186,
+              "std": 0.011956495779737876,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.25817915308100264,
+              "std": 0.09799218140366342,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.6073191714017544,
+              "std": 0.0877085817836472,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.7519747232951612,
+              "std": 0.06825626675366989,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.6071958972400187,
+              "std": 0.08778704680623194,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9245729458795374,
+              "std": 0.12562446401537206,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.124512699589226,
+              "std": 0.23946458540207888,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 34.72222222222222,
+              "std": 28.632677955678194,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 62.49999999999999,
+              "std": 52.42940580049132,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 97.22222222222221,
+              "std": 57.265355911356394,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_100_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.004087571024740371,
+              "std": 0.0035492522698571576,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04338681139750656,
+              "std": 0.0241664509774951,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3169829029711439,
+              "std": 0.17739554738912497,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5846655145526208,
+              "std": 0.19425342816668192,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.7141944895228308,
+              "std": 0.19408540394890336,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5846655145526208,
+              "std": 0.19425342816668192,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9117195767195767,
+              "std": 0.12120342292728739,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.008019033044362,
+              "std": 0.3240819788205301,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 27.777777777777775,
+              "std": 31.05649968749708,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 104.16666666666667,
+              "std": 71.15938031916387,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 131.94444444444446,
+              "std": 94.45465631066281,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_150_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.007824939527133628,
+              "std": 0.004767653862943745,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.0633205884194315,
+              "std": 0.0284075456149612,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.39859904387122375,
+              "std": 0.15154009848585345,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.4630140498575852,
+              "std": 0.12188429668814899,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6231723505231527,
+              "std": 0.1177468971221487,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.4625413707121891,
+              "std": 0.12168038215650526,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.7599950527705044,
+              "std": 0.2500150159471391,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.6568778590128519,
+              "std": 0.13991646934494306,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 48.611111111111114,
+              "std": 37.39697782732294,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 83.33333333333331,
+              "std": 83.33333333333334,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 104.16666666666663,
+              "std": 75.11565157216641,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_200_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.004543433673825986,
+              "std": 0.002539094246902405,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04874634558486368,
+              "std": 0.015423471989256483,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.33023745432596513,
+              "std": 0.12323310745775798,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5012222766207284,
+              "std": 0.09053502242751017,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6627034178210208,
+              "std": 0.08374464463300685,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5012222766207284,
+              "std": 0.09053502242751017,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9093258042436688,
+              "std": 0.13590601599704427,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.4400866966754238,
+              "std": 0.6876920525126745,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 41.66666666666668,
+              "std": 24.056261216234404,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 111.11111111111114,
+              "std": 85.61686115234689,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 138.88888888888894,
+              "std": 106.68257983150843,
+              "valid_count": 6
+            }
+          }
+        }
+      },
+      "noise_5": {
+        "height_0_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0025344150507502074,
+              "std": 0.0025762274417967398,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.028804033332627654,
+              "std": 0.01652520969001211,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.26782563506791934,
+              "std": 0.08027711405017701,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5935391351893685,
+              "std": 0.13798439734368023,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.7360178449666798,
+              "std": 0.10350932240846422,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5930338754208768,
+              "std": 0.1381781115775765,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.8070388378982128,
+              "std": 0.23085764824677762,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.8886510011565815,
+              "std": 0.376132290482354,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 20.833333333333314,
+              "std": 20.833333333333314,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 138.8888888888889,
+              "std": 185.82066889249518,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 145.83333333333334,
+              "std": 179.6182938385773,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_50_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0035453411759071157,
+              "std": 0.0033225558651827163,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.03797871592721153,
+              "std": 0.02060085139523107,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3026897649177487,
+              "std": 0.11101857852508196,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.637789570814946,
+              "std": 0.10307236848830496,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.7743965939276641,
+              "std": 0.07069045351550643,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.637789570814946,
+              "std": 0.10307236848830496,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.7694894737563006,
+              "std": 0.1522202586219843,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.9514500123274162,
+              "std": 0.3279732718643286,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 62.49999999999999,
+              "std": 20.833333333333343,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 34.72222222222223,
+              "std": 50.55631867555916,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 97.22222222222221,
+              "std": 66.60877115712114,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_100_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0034161780447538453,
+              "std": 0.0015907077782647174,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.03830685425905553,
+              "std": 0.014195918805271658,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.27709520217479905,
+              "std": 0.06405093982303202,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.7049662775321571,
+              "std": 0.11558663880411692,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.8218159508315895,
+              "std": 0.07600727961385363,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.7049662775321571,
+              "std": 0.11558663880411692,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9546473943909842,
+              "std": 0.08017733034621238,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.7837133114826863,
+              "std": 0.1476572420674498,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 13.888888888888877,
+              "std": 19.641855032959633,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 34.722222222222236,
+              "std": 37.396977827322964,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 48.611111111111114,
+              "std": 44.46614053772812,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_150_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0024793290612667267,
+              "std": 0.0009536127158004333,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.032358800631128476,
+              "std": 0.006801584416116135,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.23163436182751776,
+              "std": 0.08170796338192088,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5379142433079956,
+              "std": 0.14538536769910373,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6882228336694104,
+              "std": 0.120053749711905,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5379142433079956,
+              "std": 0.14538536769910373,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.962784090909091,
+              "std": 0.07585014467563032,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.835060007016781,
+              "std": 0.3577595058213683,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 41.666666666666664,
+              "std": 34.02069087198858,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 76.38888888888887,
+              "std": 44.46614053772812,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 118.05555555555554,
+              "std": 55.98790102985105,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_200_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0057726793399931154,
+              "std": 0.002004443452412355,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.05553209589967991,
+              "std": 0.010933837572332577,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.376672073640145,
+              "std": 0.0683891216850728,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.46000514591442226,
+              "std": 0.15731754450256108,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6156239704970666,
+              "std": 0.13529147486559256,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.46000514591442226,
+              "std": 0.15731754450256108,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.8016104899205371,
+              "std": 0.2635092853923779,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.0061371791882359,
+              "std": 0.5008325675130398,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 34.72222222222222,
+              "std": 28.632677955678197,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 69.44444444444449,
+              "std": 51.96746370519362,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 104.1666666666667,
+              "std": 57.684887936931055,
+              "valid_count": 6
+            }
+          }
+        }
+      },
+      "noise_10": {
+        "height_0_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0037882090516665255,
+              "std": 0.002560671140798521,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.046570326749317666,
+              "std": 0.015516757132764626,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.4457016901759647,
+              "std": 0.1790802485973719,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.47174300174717576,
+              "std": 0.18634422793938163,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6195528265052032,
+              "std": 0.1714633066324993,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.47174300174717576,
+              "std": 0.18634422793938163,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9187303035129122,
+              "std": 0.11958100411196558,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.6391612349061115,
+              "std": 0.26856364856641196,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 55.55555555555557,
+              "std": 39.2837100659193,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 152.77777777777777,
+              "std": 149.5879113092918,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 138.88888888888889,
+              "std": 169.53549466296806,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_50_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0035143659510853166,
+              "std": 0.0023850067738086056,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04117437764979171,
+              "std": 0.01873614661283109,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.2743280294681469,
+              "std": 0.17279945522238482,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.6412563749306758,
+              "std": 0.13218619299013107,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.7737287882760201,
+              "std": 0.09584035416690141,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.6412563749306758,
+              "std": 0.13218619299013107,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9012188388505281,
+              "std": 0.1836558799335454,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.1021509759996724,
+              "std": 0.4066002485552856,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 41.66666666666666,
+              "std": 34.020690871988585,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 48.61111111111112,
+              "std": 37.39697782732295,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 76.3888888888889,
+              "std": 44.466140537728116,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_100_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.006337762271590253,
+              "std": 0.0030230570513934576,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.056274778586103934,
+              "std": 0.016540675249112933,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3492466844999149,
+              "std": 0.08059845585261062,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5104794343993313,
+              "std": 0.14138243584898008,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6646042724797477,
+              "std": 0.12162936971944228,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5103255408936372,
+              "std": 0.1410989891776881,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.8936461891366955,
+              "std": 0.237370962889447,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.9623146884137488,
+              "std": 0.46287053864820166,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 27.777777777777786,
+              "std": 31.056499687497094,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 97.22222222222223,
+              "std": 62.112999374994175,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 97.22222222222223,
+              "std": 39.2837100659193,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_150_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.004974367685461094,
+              "std": 0.0036279277662642118,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04443587100055595,
+              "std": 0.020380667520486916,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.29043934902472374,
+              "std": 0.1292889096313947,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.48372455984464874,
+              "std": 0.22507235589834843,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6196978422509246,
+              "std": 0.21471395733062335,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.48372455984464874,
+              "std": 0.22507235589834843,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.738567380866488,
+              "std": 0.3234805601451886,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.7736584753989685,
+              "std": 0.31342983757577136,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 27.77777777777777,
+              "std": 31.056499687497073,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 138.88888888888889,
+              "std": 82.16777476527241,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 166.66666666666666,
+              "std": 79.78559231302815,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_200_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.003682726070278385,
+              "std": 0.0020602153114927875,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04143451390243836,
+              "std": 0.014690803327980033,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3332278983543845,
+              "std": 0.11720859310090513,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.4547705594637015,
+              "std": 0.168092528536183,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6058364872567076,
+              "std": 0.16946892383460838,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.4543334965266385,
+              "std": 0.1683049223160357,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.6455043061620572,
+              "std": 0.22621895788740898,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.0873525334442364,
+              "std": 0.569031982250148,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 76.38888888888889,
+              "std": 44.466140537728116,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 69.44444444444447,
+              "std": 70.81971546656646,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 90.27777777777776,
+              "std": 128.23739800430133,
+              "valid_count": 6
+            }
+          }
+        }
+      },
+      "noise_15": {
+        "height_0_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.003671943370480853,
+              "std": 0.002317780045869799,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04253870390489761,
+              "std": 0.014708978909589318,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.33583528224517184,
+              "std": 0.1624626376192436,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.4755740813109432,
+              "std": 0.14002741185660297,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6308351156519408,
+              "std": 0.1456867136728942,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.4755740813109432,
+              "std": 0.14002741185660297,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.9850427350427351,
+              "std": 0.033445461201919935,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.8517873111959765,
+              "std": 0.4442971073070184,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 41.66666666666665,
+              "std": 24.0562612162344,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 187.5,
+              "std": 218.8326563415101,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 187.5,
+              "std": 239.05436775081253,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_50_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0035546364966339626,
+              "std": 0.0018884817800237353,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.039189891452439736,
+              "std": 0.012694182328210107,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3154820416743303,
+              "std": 0.08952747072993852,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.4711090998011147,
+              "std": 0.18046733919238114,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6182835707024111,
+              "std": 0.1825834768541726,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.4711090998011147,
+              "std": 0.18046733919238114,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.7761346991102269,
+              "std": 0.27527885077444325,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.6506951661377288,
+              "std": 0.10521043875783118,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 34.72222222222222,
+              "std": 28.632677955678197,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 215.2777777777778,
+              "std": 121.27950830953459,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 222.22222222222226,
+              "std": 114.5307118227128,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_100_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.004865531436946047,
+              "std": 0.0028552959482877733,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.04755733740223947,
+              "std": 0.019967369783536037,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.3199306837379548,
+              "std": 0.09895844460990184,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5400373435293518,
+              "std": 0.09685591740671562,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.6962209340317856,
+              "std": 0.0813153507307667,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5400373435293518,
+              "std": 0.09685591740671562,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.924371785235295,
+              "std": 0.11218335792190498,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.9372471231985683,
+              "std": 0.2984561487745626,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 104.16666666666667,
+              "std": 101.35082999532239,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 97.22222222222224,
+              "std": 57.26535591135639,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 159.7222222222222,
+              "std": 169.1082730817489,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_150_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.004504075998420925,
+              "std": 0.003868398206434233,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.043197511833765745,
+              "std": 0.026808449957411516,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.34528784268133755,
+              "std": 0.11293342989785557,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.5686578337718207,
+              "std": 0.09783870332535759,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.7202904314304356,
+              "std": 0.07602799316554408,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.5683201100298416,
+              "std": 0.09794041724362103,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.7996091551277722,
+              "std": 0.16515303766734576,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 0.7950828510535956,
+              "std": 0.27964426053818475,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 41.66666666666666,
+              "std": 34.020690871988585,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 118.05555555555553,
+              "std": 116.41010148777924,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 118.05555555555553,
+              "std": 81.2826382688863,
+              "valid_count": 6
+            }
+          }
+        },
+        "height_200_m": {
+          "sample_count": 6,
+          "empty_prediction_count": 0,
+          "metrics": {
+            "density_mae": {
+              "mean": 0.0043499376818779195,
+              "std": 0.001971816592221264,
+              "valid_count": 6
+            },
+            "density_rmse": {
+              "mean": 0.048598947843661526,
+              "std": 0.014380710033533159,
+              "valid_count": 6
+            },
+            "density_mae_inside_true_body": {
+              "mean": 0.4076481408456381,
+              "std": 0.17398026767325422,
+              "valid_count": 6
+            },
+            "body_iou": {
+              "mean": 0.42944661339044754,
+              "std": 0.25304731381192025,
+              "valid_count": 6
+            },
+            "body_dice": {
+              "mean": 0.5493824319110783,
+              "std": 0.29217127303373636,
+              "valid_count": 6
+            },
+            "signed_body_iou": {
+              "mean": 0.42933838828222237,
+              "std": 0.25295669577949526,
+              "valid_count": 6
+            },
+            "true_body_sign_accuracy": {
+              "mean": 0.8453441649196366,
+              "std": 0.1784474040487195,
+              "valid_count": 6
+            },
+            "body_volume_ratio": {
+              "mean": 1.2976135019767094,
+              "std": 0.8843730747165419,
+              "valid_count": 6
+            },
+            "top_depth_error_m": {
+              "mean": 104.16666666666667,
+              "std": 31.823442326082233,
+              "valid_count": 6
+            },
+            "bottom_depth_error_m": {
+              "mean": 55.55555555555554,
+              "std": 31.056499687497087,
+              "valid_count": 6
+            },
+            "thickness_error_m": {
+              "mean": 145.83333333333331,
+              "std": 57.68488793693108,
+              "valid_count": 6
+            }
+          }
+        }
+      }
+    }
+  }
+}
