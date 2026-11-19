@@ -30,6 +30,7 @@ E11_DATASETS = {
     "E11C": "D07",
     "E11D": "D10",
     "E11E": "D10",
+    "E11F": "D10",
 }
 
 METADATA_FIELDS = (

@@ -46,8 +46,9 @@ EXPERIMENT_DATASETS = {
     "E11C": "D07",
     "E11D": "D10",
     "E11E": "D10",
+    "E11F": "D10",
 }
-PHYSICS_EXPERIMENTS = {"E11C", "E11E"}
+PHYSICS_EXPERIMENTS = {"E11C", "E11E", "E11F"}
 
 signed_e08d_loss = make_loss(
     weights={"balanced_huber": 1.0, "tversky": TVERSKY_WEIGHT,
@@ -90,11 +91,14 @@ class E11PhysicsTrainer(tf.keras.Model):
     load_model(..., compile=False).
     """
 
-    def __init__(self, network, physics_weight, physics_normalization_e):
+    def __init__(self, network, physics_weight, physics_normalization_e,
+                 tversky_weight=TVERSKY_WEIGHT, depth_weight=DEPTH_WEIGHT):
         super().__init__(name="e11_physics_trainer")
         self.network = network
         self.physics_weight = float(physics_weight)
         self.physics_normalization_e = float(physics_normalization_e)
+        self.tversky_weight = float(tversky_weight)
+        self.depth_weight = float(depth_weight)
         self.loss_tracker = tf.keras.metrics.Mean(name="loss")
         self.huber_tracker = tf.keras.metrics.Mean(name="signed_balanced_huber")
         self.tversky_tracker = tf.keras.metrics.Mean(name="signed_tversky")
@@ -128,6 +132,8 @@ class E11PhysicsTrainer(tf.keras.Model):
             dz_m=targets["dz_m"],
             physics_weight=self.physics_weight,
             physics_normalization_e=self.physics_normalization_e,
+            tversky_weight=self.tversky_weight,
+            depth_weight=self.depth_weight,
         )
         return pred, parts
 
@@ -176,7 +182,9 @@ class SaveBestNetwork(tf.keras.callbacks.Callback):
             print(f"\nEpoch {epoch + 1}: saved best network to {self.path}")
 
 
-def plot_history(hist, figures, experiment="E08D", physics=False):
+def plot_history(hist, figures, experiment="E08D", physics=False,
+                 tversky_weight=TVERSKY_WEIGHT, depth_weight=DEPTH_WEIGHT,
+                 physics_weight=0.0):
     epochs = np.arange(1, len(hist["loss"]) + 1)
     fig, ax = plt.subplots(figsize=(9, 6))
     ax.plot(epochs, hist["loss"], label="Training")
@@ -192,11 +200,11 @@ def plot_history(hist, figures, experiment="E08D", physics=False):
     fig, ax = plt.subplots(figsize=(9, 6))
     entries = [
         ("signed_balanced_huber", 1.0),
-        ("signed_tversky", TVERSKY_WEIGHT),
-        ("signed_vertical_profile", DEPTH_WEIGHT),
+        ("signed_tversky", tversky_weight),
+        ("signed_vertical_profile", depth_weight),
     ]
     if physics:
-        entries.append(("physics", 1.0))  # Unweighted physics also shown in CSV.
+        entries.append(("physics", physics_weight))  # Plot weighted physics contribution.
     for name, weight in entries:
         for prefix, style in (("", "-"), ("val_", "--")):
             key = prefix + name
@@ -292,6 +300,10 @@ def main():
     for directory in dirs:
         directory.mkdir(parents=True, exist_ok=True)
 
+    # E11F isolates the relative influence of signed occupancy losses.
+    tversky_weight = 0.02 if experiment == "E11F" else TVERSKY_WEIGHT
+    depth_weight = 0.005 if experiment == "E11F" else DEPTH_WEIGHT
+
     tf.keras.utils.set_random_seed(args.seed)
     mode = "physics_clean" if physics_weight > 0 else "density"
     train = make_dataset(
@@ -308,7 +320,8 @@ def main():
 
     if physics_weight > 0:
         model = E11PhysicsTrainer(
-            network, physics_weight, args.physics_normalization_e
+            network, physics_weight, args.physics_normalization_e,
+            tversky_weight=tversky_weight, depth_weight=depth_weight
         )
         model.compile(
             optimizer=tf.keras.optimizers.Adam(LEARNING_RATE),
@@ -349,8 +362,8 @@ def main():
         experiment=experiment,
         comparison_experiment=("E08C" if experiment == "E08D" else "E11BASE"),
         seed=args.seed,
-        loss=("signed balanced Huber (delta=0.1) + 0.1 signed Tversky "
-              "+ 0.02 depth profile"
+        loss=(f"signed balanced Huber (delta=0.1) + {tversky_weight} signed Tversky "
+              f"+ {depth_weight} depth profile"
               + (f" + {physics_weight} clean-Gzz physics" if physics_weight else "")),
         huber_delta_gcm3=HUBER_DELTA,
         output="tanh [-1,1] g/cm3",
@@ -366,6 +379,8 @@ def main():
         config.update(
             dataset=default_dataset,
             physics_weight=physics_weight,
+            tversky_weight=tversky_weight,
+            depth_weight=depth_weight,
             physics_normalization_e=args.physics_normalization_e,
             physics_target="gravity_clean" if physics_weight else "none",
             grid=data_config["grid"],
@@ -383,7 +398,9 @@ def main():
         callbacks=callbacks, verbose=2
     ).history
     plot_history(history, dirs[2], experiment=experiment,
-                 physics=(physics_weight > 0))
+                 physics=(physics_weight > 0),
+                 tversky_weight=tversky_weight, depth_weight=depth_weight,
+                 physics_weight=physics_weight)
     best_epoch = int(np.argmin(history["val_loss"])) + 1
     print(f"{experiment} training complete; best epoch {best_epoch}; "
           f"checkpoint {checkpoint}", flush=True)

@@ -222,6 +222,8 @@ def e11_loss_components(
     dz_m=1000.0 / 24.0,
     physics_weight=0.0,
     physics_normalization_e=100.0,
+    tversky_weight=0.1,
+    depth_weight=0.02,
 ):
     """E08D signed density objective plus optional E11 Gzz consistency.
 
@@ -242,11 +244,13 @@ def e11_loss_components(
         raise ValueError("physics_weight must be nonnegative")
     if not 0.0 < float(physics_normalization_e):
         raise ValueError("physics_normalization_e must be positive")
+    if float(tversky_weight) < 0 or float(depth_weight) < 0:
+        raise ValueError("tversky_weight and depth_weight must be nonnegative")
 
     weights = {
         "balanced_huber": 1.0,
-        "tversky": 0.1,
-        "depth": 0.02,
+        "tversky": float(tversky_weight),
+        "depth": float(depth_weight),
     }
     if physics_weight > 0:
         if gravity_clean is None:
