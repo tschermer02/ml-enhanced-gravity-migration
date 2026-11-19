@@ -1,0 +1,61 @@
+{
+  "experiment": "E11F",
+  "source": "src/data/Thunderbird_gravity_data/Tbird_gravity.dat",
+  "channel": 7,
+  "input_unit": "eotvos",
+  "source_z_coordinate": 0.0,
+  "assumed_receiver_height_m": 100.0,
+  "original_survey_span_xy_m": [
+    7999.699999999953,
+    7999.5
+  ],
+  "retained_survey_span_xy_m": [
+    7719.710500000045,
+    7719.5175000000745
+  ],
+  "retained_fraction_of_each_original_axis": 0.965,
+  "retained_fraction_of_original_bounding_box_area": 0.9312250000000197,
+  "trained_receiver_span_xy_m": [
+    10000.0,
+    10000.0
+  ],
+  "survey_to_e11_coordinate_scale_xy": [
+    1.2953853645159288,
+    1.2954177511742027
+  ],
+  "survey_original_bounds_xy_m": [
+    [
+      553000.17,
+      5848000.4
+    ],
+    [
+      560999.87,
+      5855999.9
+    ]
+  ],
+  "survey_retained_bounds_xy_m": [
+    [
+      553140.16475,
+      5848140.39125
+    ],
+    [
+      560859.87525,
+      5855859.90875
+    ]
+  ],
+  "original_station_spacing_median_m": 6.838340442229275,
+  "maximum_allowed_distance_to_station_m": 177.79685149796114,
+  "full_bounding_box_supported_fraction": 0.9544276787075141,
+  "retained_receiver_coverage_fraction": 1.0,
+  "interpolation": "Linear interpolation strictly inside survey convex hull and station-distance coverage; never nearest-filled",
+  "no_extrapolation": true,
+  "synthetic_observations_added": false,
+  "covered_receiver_gzz_rmse_e": 45.145538330078125,
+  "migration_normalization_scale": 1359.7511797242275,
+  "model_extent_m": [
+    8000,
+    8000,
+    1000
+  ],
+  "interpretation": "Coordinates are rescaled. Linear interpolation does not create independent measurements. Model-scale depths/densities are not validated geologic properties."
+}

@@ -1,0 +1,29 @@
+{
+  "source": "src/data/Thunderbird_gravity_data/Tbird_gravity.dat",
+  "component": 7,
+  "input_unit_assumed": "Eotvos",
+  "n_original_observations": 41124,
+  "grid_shape": [
+    81,
+    81
+  ],
+  "x_range_m": [
+    553000.17,
+    560999.87
+  ],
+  "y_range_m": [
+    5848000.4,
+    5855999.9
+  ],
+  "z_range_source_units": [
+    0.0,
+    0.0
+  ],
+  "dx_m": 99.99624999999942,
+  "dy_m": 99.99375,
+  "coverage_fraction": 0.9544276787075141,
+  "missing_nodes": 299,
+  "coordinate_scale_factor": 1.0,
+  "interpolation": "LinearNDInterpolator",
+  "extrapolation": "none"
+}

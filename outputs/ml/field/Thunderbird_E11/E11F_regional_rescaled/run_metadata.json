@@ -1,0 +1,43 @@
+{
+  "experiment": "E11F",
+  "source": "src/data/Thunderbird_gravity_data/Tbird_gravity.dat",
+  "source_z_coordinate": 0.0,
+  "model_checkpoint": "outputs/ml/training/E11F/checkpoints/best_unet3d.keras",
+  "Gzz_channel": 7,
+  "input_unit": "eotvos",
+  "assumed_height_m": 100.0,
+  "survey_bounds_xy_m": [
+    [
+      553000.17,
+      5848000.4
+    ],
+    [
+      560999.87,
+      5855999.9
+    ]
+  ],
+  "survey_span_xy_m": [
+    7999.699999999953,
+    7999.5
+  ],
+  "rescaled_receiver_span_xy_m": [
+    10000.0,
+    10000.0
+  ],
+  "survey_to_e11_coordinate_scale_xy": [
+    1.2500468767578856,
+    1.2500781298831176
+  ],
+  "resampling": "affine map survey bounding box onto 81x81 E11 receiver footprint; linear scattered interpolation, nearest exterior fill",
+  "outside_survey_hull_fraction": 0.0455723212924859,
+  "nearest_station_distance_median_in_model_coords": 76.84567746693992,
+  "nearest_station_distance_max_in_model_coords": 232.9501515718744,
+  "receiver_covered_Gzz_RMSE_E": 44.17949295043945,
+  "migration_normalization_scale": 1367.8943160990764,
+  "model_extent_m": [
+    8000.0,
+    8000.0,
+    1000.0
+  ],
+  "limitation": "Coordinate rescaling changes the physical relationship between survey wavelengths and subsurface depths. Figures are illustrative inference, not validated physical field density. Nearest-filled receivers are extrapolated, not observed."
+}
